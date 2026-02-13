@@ -13,6 +13,11 @@
     "start": "electron-vite preview"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-vue-next": "^0.563.0",
+    "radix-vue": "^1.9.17",
+    "tailwind-merge": "^3.4.0",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0"
   },

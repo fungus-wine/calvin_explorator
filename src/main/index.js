@@ -1,6 +1,9 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
+// Disable security warnings for hobby/personal use
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -14,7 +17,7 @@ function createWindow() {
 
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools()
+    // mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
