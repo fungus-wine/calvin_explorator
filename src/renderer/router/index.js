@@ -1,5 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
+import Services from '../views/Services.vue'
+import Diagnostics from '../views/Diagnostics.vue'
+import Telemetry from '../views/Telemetry.vue'
 import Settings from '../views/Settings.vue'
 
 const routes = [
@@ -11,6 +14,21 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: Dashboard
+  },
+  {
+    path: '/services',
+    name: 'Services',
+    component: Services
+  },
+  {
+    path: '/diagnostics',
+    name: 'Diagnostics',
+    component: Diagnostics
+  },
+  {
+    path: '/telemetry',
+    name: 'Telemetry',
+    component: Telemetry
   },
   {
     path: '/settings',
