@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, Settings, Activity, Radio, Package, OctagonX } from 'lucide-vue-next'
+import { Home, Settings, Activity, Radio, Blocks, OctagonX } from 'lucide-vue-next'
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +26,7 @@ const items = [
   {
     title: 'Services',
     url: '/services',
-    icon: Package,
+    icon: Blocks,
   },
   {
     title: 'Diagnostics',
