@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, Settings, Activity, Radio, Package } from 'lucide-vue-next'
+import { Home, Settings, Activity, Radio, Package, OctagonX } from 'lucide-vue-next'
 import {
   Sidebar,
   SidebarContent,
@@ -14,9 +14,8 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 
 const items = [
   {
@@ -86,8 +85,10 @@ const items = [
     </Sidebar>
     <SidebarInset>
       <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger class="-ml-1" />
-        <Separator orientation="vertical" class="mr-2 h-4" />
+        <Button class="ml-auto bg-red-600 hover:bg-red-700 text-white font-semibold">
+          <OctagonX class="mr-2 h-5 w-5" />
+          STOP
+        </Button>
       </header>
       <div class="flex flex-1 flex-col gap-4 p-4">
         <router-view />
