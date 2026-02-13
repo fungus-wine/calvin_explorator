@@ -40,7 +40,7 @@ src/
     │   └── index.ts
     ├── views/               # Page components
     │   ├── Dashboard.vue
-    │   ├── Services.vue
+    │   ├── Services.vue     # Service management with switches
     │   ├── Diagnostics.vue  # FFT charts for IMU data
     │   ├── Telemetry.vue
     │   └── Settings.vue     # Theme and dark mode controls
@@ -50,6 +50,8 @@ src/
             ├── card/
             ├── sidebar/     # FIXED: Tailwind CSS variable syntax
             ├── switch/
+            ├── checkbox/
+            ├── label/
             ├── select/
             ├── button/
             ├── separator/
@@ -158,6 +160,67 @@ const svgDefs = `
 
 ### Chart Styling
 Grid lines, axis labels, and colors are customized via scoped styles with `:deep()` selectors.
+
+## Services Page
+
+### Service Management UI
+Location: `src/renderer/views/Services.vue`
+
+**Features:**
+- Toggle switches for enabling/disabling services
+- Theme-aware highlighting when service is enabled
+- Clean card-based layout without visible switches
+- Designed for future remote service control
+
+**Pattern:**
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+
+interface Service {
+  id: string
+  title: string
+  description: string
+  enabled: boolean
+}
+
+const services = ref<Service[]>([...])
+</script>
+
+<template>
+  <Label
+    :for="service.id"
+    class="flex items-start rounded-lg border p-4 cursor-pointer transition-colors
+           has-data-[state=checked]:bg-primary/5
+           has-data-[state=checked]:border-primary
+           dark:has-data-[state=checked]:bg-primary/10"
+  >
+    <Switch
+      :id="service.id"
+      v-model:checked="service.enabled"
+      class="sr-only"
+    />
+    <div class="grid gap-1.5 font-normal">
+      <p class="text-sm leading-none font-medium">{{ service.title }}</p>
+      <p class="text-muted-foreground text-sm">{{ service.description }}</p>
+    </div>
+  </Label>
+</template>
+```
+
+**Key Implementation Details:**
+- **Switch vs Checkbox**: Uses `Switch` component (not `Checkbox`) as it's semantically correct for on/off service states
+- **Hidden Controls**: Switch is hidden with `sr-only` class - entire card is clickable
+- **Theme Integration**: Enabled state uses `primary` color variables, automatically adapts to active theme
+- **State Selectors**: Uses `has-data-[state=checked]` to style parent based on switch state
+- **Accessibility**: `sr-only` keeps controls accessible to screen readers while hiding them visually
+
+**Styling States:**
+- Default: Standard border
+- Enabled (light): `bg-primary/5` + `border-primary`
+- Enabled (dark): `bg-primary/10` + `border-primary`
 
 ## shadcn-vue Components
 
