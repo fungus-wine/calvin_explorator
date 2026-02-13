@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, Settings, Activity, Radio, Blocks, OctagonX, Sliders } from 'lucide-vue-next'
+import { TvMinimal, Settings, Activity, Radio, Blocks, OctagonX, Sliders } from 'lucide-vue-next'
 import {
   Sidebar,
   SidebarContent,
@@ -22,7 +22,7 @@ const items = [
   {
     title: 'Dashboard',
     url: '/dashboard',
-    icon: Home,
+    icon: TvMinimal,
   },
   {
     title: 'Services',
