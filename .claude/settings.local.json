@@ -14,7 +14,9 @@
       "WebFetch(domain:www.shadcn.io)",
       "Bash(npx shadcn-vue@latest add:*)",
       "Bash(ls:*)",
-      "Bash(yes:*)"
+      "Bash(yes:*)",
+      "WebFetch(domain:unovis.dev)",
+      "Bash(/Users/damoncali/code/calvin_console/src/renderer/style.css << 'EOF'\n\n/* Adding chart colors to remaining themes */\nEOF)"
     ]
   }
 }
