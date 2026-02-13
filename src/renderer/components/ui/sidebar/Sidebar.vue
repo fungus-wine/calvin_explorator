@@ -1,4 +1,18 @@
 <script setup lang="ts">
+/**
+ * FIXED: Corrected Tailwind CSS syntax for CSS custom properties
+ *
+ * The shadcn-vue CLI installs this component with incorrect Tailwind syntax for CSS variables.
+ * Changed 6 instances from:
+ *   - w-[--sidebar-width] → w-[var(--sidebar-width)]
+ *   - w-[--sidebar-width-icon] → w-[var(--sidebar-width-icon)]
+ *
+ * The correct syntax uses var() to reference CSS custom properties in Tailwind arbitrary values.
+ * Without this fix, the spacer div has zero width and the sidebar overlays content instead of
+ * creating a proper side-by-side layout.
+ *
+ * This is a known bug in shadcn-vue (see GitHub issues #8242, #6095)
+ */
 import type { SidebarProps } from "."
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent } from '@/components/ui/sheet'
@@ -20,7 +34,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 <template>
   <div
     v-if="collapsible === 'none'"
-    :class="cn('flex min-h-svh w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground', props.class)"
+    :class="cn('flex min-h-svh w-[var(--sidebar-width)] flex-col bg-sidebar text-sidebar-foreground', props.class)"
     v-bind="$attrs"
   >
     <slot />
@@ -31,7 +45,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       data-sidebar="sidebar"
       data-mobile="true"
       :side="side"
-      class="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+      class="w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
       :style="{
         '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
       }"
@@ -52,24 +66,24 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     <!-- This is what handles the sidebar gap on desktop  -->
     <div
       :class="cn(
-        'duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear',
+        'duration-200 relative h-svh w-[var(--sidebar-width)] bg-transparent transition-[width] ease-linear',
         'group-data-[collapsible=offcanvas]:w-0',
         'group-data-[side=right]:rotate-180',
         variant === 'floating' || variant === 'inset'
           ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]'
-          : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon]',
+          : 'group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]',
       )"
     />
     <div
       :class="cn(
-        'duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex',
+        'duration-200 fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width)] transition-[left,right,width] ease-linear md:flex',
         side === 'left'
           ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
           : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
         // Adjust the padding for floating and inset variants.
         variant === 'floating' || variant === 'inset'
           ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+_2px)]'
-          : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l',
+          : 'group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)] group-data-[side=left]:border-r group-data-[side=right]:border-l',
         props.class,
       )"
       v-bind="$attrs"

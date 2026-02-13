@@ -13,7 +13,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
 } from '@/components/ui/sidebar'
+import { Separator } from '@/components/ui/separator'
 
 const items = [
   {
@@ -46,7 +49,7 @@ const items = [
 
 <template>
   <SidebarProvider>
-    <Sidebar collapsible="none">
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -79,8 +82,13 @@ const items = [
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
+      <SidebarRail />
     </Sidebar>
     <SidebarInset>
+      <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger class="-ml-1" />
+        <Separator orientation="vertical" class="mr-2 h-4" />
+      </header>
       <div class="flex flex-1 flex-col gap-4 p-4">
         <router-view />
       </div>
