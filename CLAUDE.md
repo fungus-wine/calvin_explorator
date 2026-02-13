@@ -154,7 +154,7 @@ npm run preview  # Preview production build
 
 ## File Editing Rules
 
-- **NO TypeScript files** - use `.js` for scripts, `.vue` for components
+- **Use TypeScript
 - **Use Options API** in all Vue components
 - **Use ES modules** - package.json has `"type": "module"`
 - **Follow existing code style** - match the formatting in existing files
@@ -189,3 +189,4 @@ To communicate between main and renderer:
 - Don't commit to git. user will do all git operations
 - Be aware that shadcn/vue may not be totally compatible with Tailwind 4.1 yet. Please do recent research when impelementing related features.
 - Always use shadcn/vue components when possible. If not possible, stop to ask for direction.
+- Always use unmodified shadcn/vue compoents via the official tool chain. If that is not possible, ask for direction

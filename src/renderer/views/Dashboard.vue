@@ -20,17 +20,3 @@
     </div>
   </div>
 </template>
-
-<script>
-export default {
-  name: 'Dashboard',
-  data() {
-    return {
-      // Add your data here
-    }
-  },
-  methods: {
-    // Add your methods here
-  }
-}
-</script>

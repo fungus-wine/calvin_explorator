@@ -1,3 +1,62 @@
+<script setup lang="ts">
+import { ref, watch, onMounted } from 'vue'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+const darkMode = ref(true)
+const selectedTheme = ref('default')
+
+const themes = [
+  { value: 'default', label: 'Default' },
+  { value: 'red', label: 'Red' },
+  { value: 'rose', label: 'Rose' },
+  { value: 'orange', label: 'Orange' },
+  { value: 'green', label: 'Green' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'yellow', label: 'Yellow' },
+  { value: 'violet', label: 'Violet' },
+]
+
+const applyDarkMode = () => {
+  if (darkMode.value) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+}
+
+const applyTheme = () => {
+  document.documentElement.dataset.theme = selectedTheme.value
+}
+
+onMounted(() => {
+  const savedDarkMode = localStorage.getItem('darkMode')
+  darkMode.value = savedDarkMode !== null ? savedDarkMode === 'true' : true
+
+  const savedTheme = localStorage.getItem('theme') || 'default'
+  selectedTheme.value = savedTheme
+
+  applyDarkMode()
+  applyTheme()
+})
+
+watch(darkMode, (newValue) => {
+  localStorage.setItem('darkMode', String(newValue))
+  applyDarkMode()
+})
+
+watch(selectedTheme, (newValue) => {
+  localStorage.setItem('theme', newValue)
+  applyTheme()
+})
+</script>
+
 <template>
   <div>
     <h2 class="text-3xl font-bold mb-6">Settings</h2>
@@ -16,14 +75,14 @@
             </div>
             <div class="w-48">
               <Select v-model="selectedTheme">
-                <option value="default">Default</option>
-                <option value="red">Red</option>
-                <option value="rose">Rose</option>
-                <option value="orange">Orange</option>
-                <option value="green">Green</option>
-                <option value="blue">Blue</option>
-                <option value="yellow">Yellow</option>
-                <option value="violet">Violet</option>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="theme in themes" :key="theme.value" :value="theme.value">
+                    {{ theme.label }}
+                  </SelectItem>
+                </SelectContent>
               </Select>
             </div>
           </div>
@@ -42,54 +101,3 @@
     </div>
   </div>
 </template>
-
-<script>
-import Switch from '../components/ui/Switch.vue'
-import Select from '../components/ui/Select.vue'
-
-export default {
-  name: 'Settings',
-  components: {
-    Switch,
-    Select
-  },
-  data() {
-    return {
-      darkMode: true,
-      selectedTheme: 'default'
-    }
-  },
-  mounted() {
-    const savedDarkMode = localStorage.getItem('darkMode')
-    this.darkMode = savedDarkMode !== null ? savedDarkMode === 'true' : true
-
-    const savedTheme = localStorage.getItem('theme') || 'default'
-    this.selectedTheme = savedTheme
-
-    this.applyDarkMode()
-    this.applyTheme()
-  },
-  watch: {
-    darkMode(newValue) {
-      localStorage.setItem('darkMode', newValue)
-      this.applyDarkMode()
-    },
-    selectedTheme(newValue) {
-      localStorage.setItem('theme', newValue)
-      this.applyTheme()
-    }
-  },
-  methods: {
-    applyDarkMode() {
-      if (this.darkMode) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    },
-    applyTheme() {
-      document.documentElement.dataset.theme = this.selectedTheme
-    }
-  }
-}
-</script>
