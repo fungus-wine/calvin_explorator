@@ -36,12 +36,12 @@ function handleKeyDown(event: KeyboardEvent) {
 
     <div class="space-y-6">
       <!-- Video Display Area (4:3 aspect ratio) -->
-      <div class="w-full aspect-[4/3] bg-black border rounded-lg flex items-center justify-center">
+      <div class="w-full max-w-5xl mx-auto aspect-[4/3] bg-black border rounded-lg flex items-center justify-center">
         <p class="text-muted-foreground text-sm">Video stream will display here</p>
       </div>
 
       <!-- Command Input Area -->
-      <div class="relative flex w-full items-center rounded-md border border-input shadow-sm transition-[color,box-shadow] has-[textarea:focus-visible]:border-primary has-[textarea:focus-visible]:ring-primary/50 has-[textarea:focus-visible]:ring-[3px]">
+      <div class="relative flex w-full max-w-5xl mx-auto items-center rounded-md border border-input shadow-sm transition-[color,box-shadow] has-[textarea:focus-visible]:border-primary has-[textarea:focus-visible]:ring-primary/50 has-[textarea:focus-visible]:ring-[3px]">
         <Textarea
           v-model="commandInput"
           placeholder="Enter command to send to remote host..."
@@ -60,9 +60,6 @@ function handleKeyDown(event: KeyboardEvent) {
         </div>
       </div>
 
-      <p class="text-xs text-muted-foreground">
-        Press Enter to send • Shift+Enter for new line
-      </p>
     </div>
   </div>
 </template>
