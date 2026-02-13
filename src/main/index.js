@@ -8,12 +8,17 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    backgroundColor: '#252525',
+    backgroundColor: '#1a1a1a',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show()
   })
 
   if (process.env.NODE_ENV === 'development') {

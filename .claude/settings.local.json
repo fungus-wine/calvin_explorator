@@ -18,5 +18,9 @@
       "WebFetch(domain:unovis.dev)",
       "Bash(/Users/damoncali/code/calvin_console/src/renderer/style.css << 'EOF'\n\n/* Adding chart colors to remaining themes */\nEOF)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "shadcn"
+  ],
+  "enableAllProjectMcpServers": true
 }
