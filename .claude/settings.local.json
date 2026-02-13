@@ -4,7 +4,14 @@
       "WebSearch",
       "Bash(npm create:*)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "WebFetch(domain:www.shadcn-vue.com)",
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:shadcn-vue.com)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:www.shadcn.io)"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 export default defineConfig({
@@ -31,7 +32,7 @@ export default defineConfig({
         '@': resolve('src/renderer')
       }
     },
-    plugins: [vue()],
+    plugins: [vue(), tailwindcss()],
     server: {
       port: 5173
     }

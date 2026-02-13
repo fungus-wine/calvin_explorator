@@ -15,7 +15,7 @@
 <script>
 import Sidebar from './ui/Sidebar.vue'
 import SidebarNav from './ui/SidebarNav.vue'
-import { LayoutDashboard, Settings } from 'lucide-vue-next'
+import { LayoutDashboard, Settings, Blocks } from 'lucide-vue-next'
 
 export default {
   name: 'Layout',
@@ -30,6 +30,11 @@ export default {
           label: 'Dashboard',
           to: '/dashboard',
           icon: LayoutDashboard
+        },
+        {
+          label: 'Services',
+          to: '/services',
+          icon: Blocks
         },
         {
           label: 'Settings',
