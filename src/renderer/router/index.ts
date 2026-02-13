@@ -3,6 +3,7 @@ import Dashboard from '../views/Dashboard.vue'
 import Services from '../views/Services.vue'
 import Diagnostics from '../views/Diagnostics.vue'
 import Telemetry from '../views/Telemetry.vue'
+import PIDTuning from '../views/PIDTuning.vue'
 import Settings from '../views/Settings.vue'
 
 const routes = [
@@ -29,6 +30,11 @@ const routes = [
     path: '/telemetry',
     name: 'Telemetry',
     component: Telemetry
+  },
+  {
+    path: '/pid-tuning',
+    name: 'PID Tuning',
+    component: PIDTuning
   },
   {
     path: '/settings',

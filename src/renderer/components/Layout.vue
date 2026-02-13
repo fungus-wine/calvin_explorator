@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Home, Settings, Activity, Radio, Blocks, OctagonX } from 'lucide-vue-next'
+import { Home, Settings, Activity, Radio, Blocks, OctagonX, Sliders } from 'lucide-vue-next'
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 
@@ -37,6 +38,11 @@ const items = [
     title: 'Telemetry',
     url: '/telemetry',
     icon: Radio,
+  },
+  {
+    title: 'PID Tuning',
+    url: '/pid-tuning',
+    icon: Sliders,
   },
   {
     title: 'Settings',
@@ -85,6 +91,7 @@ const items = [
     </Sidebar>
     <SidebarInset>
       <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger />
         <Button class="ml-auto bg-red-600 hover:bg-red-700 text-white font-semibold">
           <OctagonX class="mr-2 h-5 w-5" />
           STOP
