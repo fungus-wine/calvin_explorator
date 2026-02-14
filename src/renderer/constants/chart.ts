@@ -17,13 +17,18 @@ export const CHART_CONFIG = {
 } as const
 
 /**
- * SVG gradient definition for FFT charts
- * Uses CSS variable --chart-1 for theme-aware coloring
+ * SVG gradient definitions for area charts
+ * Provides gradients for chart-1 and chart-2 theme colors
+ * Can be used by any area chart component
  */
-export const FFT_GRADIENT_DEFS = `
-  <linearGradient id="fillFFT" x1="0" y1="0" x2="0" y2="1">
+export const CHART_GRADIENT_DEFS = `
+  <linearGradient id="fillChart1" x1="0" y1="0" x2="0" y2="1">
     <stop offset="5%" stop-color="var(--chart-1)" stop-opacity="0.8"/>
     <stop offset="95%" stop-color="var(--chart-1)" stop-opacity="0.1"/>
+  </linearGradient>
+  <linearGradient id="fillChart2" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="5%" stop-color="var(--chart-2)" stop-opacity="0.8"/>
+    <stop offset="95%" stop-color="var(--chart-2)" stop-opacity="0.1"/>
   </linearGradient>
 ` as const
 

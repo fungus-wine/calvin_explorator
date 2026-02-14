@@ -75,7 +75,19 @@ export default defineComponent({
           url: NAV_ROUTES.SETTINGS,
           icon: Settings,
         },
-      ] satisfies NavigationItem[]
+      ] satisfies NavigationItem[],
+      batteryLevel: 70 // State of charge percentage
+    }
+  },
+  created() {
+    // Initialize battery level with dummy data
+    this.batteryLevel = this.generateBatteryLevel()
+  },
+  methods: {
+    // Generate realistic battery level (dummy data)
+    generateBatteryLevel(): number {
+      // Simulate battery at ~70% with some variation
+      return 65 + Math.floor(Math.random() * 10)
     }
   }
 })
@@ -121,6 +133,41 @@ export default defineComponent({
     <SidebarInset>
       <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger />
+
+        <!-- Battery Status -->
+        <div class="flex items-center gap-2 ml-2">
+          <!-- Battery Icon -->
+          <div class="relative flex items-center">
+            <!-- Battery body -->
+            <div class="relative w-12 h-6 border-2 rounded flex items-center"
+                 :class="{
+                   'border-green-600 dark:border-green-400': batteryLevel > 50,
+                   'border-yellow-600 dark:border-yellow-400': batteryLevel > 20 && batteryLevel <= 50,
+                   'border-red-600 dark:border-red-400': batteryLevel <= 20
+                 }">
+              <!-- Fill level -->
+              <div class="h-3.5 ml-0.5 rounded-sm transition-all duration-300"
+                   :class="{
+                     'bg-green-600 dark:bg-green-400': batteryLevel > 50,
+                     'bg-yellow-600 dark:bg-yellow-400': batteryLevel > 20 && batteryLevel <= 50,
+                     'bg-red-600 dark:bg-red-400': batteryLevel <= 20
+                   }"
+                   :style="{ width: Math.max(2, (batteryLevel / 100) * 43) + 'px' }">
+              </div>
+            </div>
+            <!-- Battery terminal (nub) -->
+            <div class="w-1 h-3 rounded-r"
+                 :class="{
+                   'bg-green-600 dark:bg-green-400': batteryLevel > 50,
+                   'bg-yellow-600 dark:bg-yellow-400': batteryLevel > 20 && batteryLevel <= 50,
+                   'bg-red-600 dark:bg-red-400': batteryLevel <= 20
+                 }">
+            </div>
+          </div>
+          <!-- Percentage -->
+          <div class="text-sm font-mono font-semibold">{{ batteryLevel }}%</div>
+        </div>
+
         <Button variant="destructive" class="ml-auto font-semibold">
           <OctagonX class="mr-2 h-5 w-5" />
           STOP
