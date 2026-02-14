@@ -1,4 +1,5 @@
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { TvMinimal, Settings, Activity, Radio, Blocks, OctagonX, Sliders } from 'lucide-vue-next'
 import {
   Sidebar,
@@ -18,38 +19,68 @@ import {
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 
-const items = [
-  {
-    title: 'Dashboard',
-    url: '/dashboard',
-    icon: TvMinimal,
+export default defineComponent({
+  components: {
+    TvMinimal,
+    Settings,
+    Activity,
+    Radio,
+    Blocks,
+    OctagonX,
+    Sliders,
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarProvider,
+    SidebarRail,
+    SidebarTrigger,
+    Button
   },
-  {
-    title: 'Services',
-    url: '/services',
-    icon: Blocks,
-  },
-  {
-    title: 'Diagnostics',
-    url: '/diagnostics',
-    icon: Activity,
-  },
-  {
-    title: 'Telemetry',
-    url: '/telemetry',
-    icon: Radio,
-  },
-  {
-    title: 'PID Tuning',
-    url: '/pid-tuning',
-    icon: Sliders,
-  },
-  {
-    title: 'Settings',
-    url: '/settings',
-    icon: Settings,
-  },
-]
+  data() {
+    return {
+      items: [
+        {
+          title: 'Dashboard',
+          url: '/dashboard',
+          icon: TvMinimal,
+        },
+        {
+          title: 'Services',
+          url: '/services',
+          icon: Blocks,
+        },
+        {
+          title: 'Diagnostics',
+          url: '/diagnostics',
+          icon: Activity,
+        },
+        {
+          title: 'Telemetry',
+          url: '/telemetry',
+          icon: Radio,
+        },
+        {
+          title: 'PID Tuning',
+          url: '/pid-tuning',
+          icon: Sliders,
+        },
+        {
+          title: 'Settings',
+          url: '/settings',
+          icon: Settings,
+        },
+      ]
+    }
+  }
+})
 </script>
 
 <template>

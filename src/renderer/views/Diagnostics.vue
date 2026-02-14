@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { ref } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { VisXYContainer, VisArea, VisLine, VisAxis } from '@unovis/vue'
 
@@ -24,63 +24,86 @@ const svgDefs = `
   </linearGradient>
 `
 
-// Generate realistic FFT data (frequency spectrum)
-function generateBalancerFFT(): FFTDataPoint[] {
-  const data: FFTDataPoint[] = []
+export default defineComponent({
+  components: {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    VisXYContainer,
+    VisArea,
+    VisLine,
+    VisAxis
+  },
+  data() {
+    return {
+      CHART_HEIGHT,
+      AREA_OPACITY,
+      LINE_WIDTH,
+      X_AXIS_TICKS,
+      Y_AXIS_TICKS,
+      svgDefs,
+      balancerData: this.generateBalancerFFT(),
+      oakdData: this.generateOakDFFT()
+    }
+  },
+  methods: {
+    // Generate realistic FFT data (frequency spectrum)
+    generateBalancerFFT(): FFTDataPoint[] {
+      const data: FFTDataPoint[] = []
 
-  for (let i = 0; i <= 100; i++) {
-    const freq = i * 0.5 // 0 to 50 Hz in 0.5 Hz steps
+      for (let i = 0; i <= 100; i++) {
+        const freq = i * 0.5 // 0 to 50 Hz in 0.5 Hz steps
 
-    // Base noise that decays with frequency
-    let magnitude = Math.exp(-freq / 30) * (0.05 + Math.random() * 0.03)
+        // Base noise that decays with frequency
+        let magnitude = Math.exp(-freq / 30) * (0.05 + Math.random() * 0.03)
 
-    // Fundamental vibration at ~8 Hz (balancer motor)
-    magnitude += 0.6 * Math.exp(-Math.pow(freq - 8, 2) / 2)
+        // Fundamental vibration at ~8 Hz (balancer motor)
+        magnitude += 0.6 * Math.exp(-Math.pow(freq - 8, 2) / 2)
 
-    // Second harmonic at ~16 Hz
-    magnitude += 0.3 * Math.exp(-Math.pow(freq - 16, 2) / 3)
+        // Second harmonic at ~16 Hz
+        magnitude += 0.3 * Math.exp(-Math.pow(freq - 16, 2) / 3)
 
-    // Third harmonic at ~24 Hz
-    magnitude += 0.15 * Math.exp(-Math.pow(freq - 24, 2) / 4)
+        // Third harmonic at ~24 Hz
+        magnitude += 0.15 * Math.exp(-Math.pow(freq - 24, 2) / 4)
 
-    // Structural resonance at ~35 Hz
-    magnitude += 0.2 * Math.exp(-Math.pow(freq - 35, 2) / 2.5)
+        // Structural resonance at ~35 Hz
+        magnitude += 0.2 * Math.exp(-Math.pow(freq - 35, 2) / 2.5)
 
-    data.push({ frequency: freq, magnitude })
+        data.push({ frequency: freq, magnitude })
+      }
+
+      return data
+    },
+    generateOakDFFT(): FFTDataPoint[] {
+      const data: FFTDataPoint[] = []
+
+      for (let i = 0; i <= 100; i++) {
+        const freq = i * 0.5 // 0 to 50 Hz in 0.5 Hz steps
+
+        // Base noise that decays with frequency
+        let magnitude = Math.exp(-freq / 25) * (0.04 + Math.random() * 0.02)
+
+        // Main vibration at ~6 Hz (slightly different from balancer)
+        magnitude += 0.5 * Math.exp(-Math.pow(freq - 6, 2) / 2.5)
+
+        // Second harmonic at ~12 Hz
+        magnitude += 0.25 * Math.exp(-Math.pow(freq - 12, 2) / 3)
+
+        // Camera-specific vibration at ~28 Hz
+        magnitude += 0.18 * Math.exp(-Math.pow(freq - 28, 2) / 2)
+
+        // High frequency noise peak at ~42 Hz
+        magnitude += 0.12 * Math.exp(-Math.pow(freq - 42, 2) / 3)
+
+        data.push({ frequency: freq, magnitude })
+      }
+
+      return data
+    }
   }
-
-  return data
-}
-
-function generateOakDFFT(): FFTDataPoint[] {
-  const data: FFTDataPoint[] = []
-
-  for (let i = 0; i <= 100; i++) {
-    const freq = i * 0.5 // 0 to 50 Hz in 0.5 Hz steps
-
-    // Base noise that decays with frequency
-    let magnitude = Math.exp(-freq / 25) * (0.04 + Math.random() * 0.02)
-
-    // Main vibration at ~6 Hz (slightly different from balancer)
-    magnitude += 0.5 * Math.exp(-Math.pow(freq - 6, 2) / 2.5)
-
-    // Second harmonic at ~12 Hz
-    magnitude += 0.25 * Math.exp(-Math.pow(freq - 12, 2) / 3)
-
-    // Camera-specific vibration at ~28 Hz
-    magnitude += 0.18 * Math.exp(-Math.pow(freq - 28, 2) / 2)
-
-    // High frequency noise peak at ~42 Hz
-    magnitude += 0.12 * Math.exp(-Math.pow(freq - 42, 2) / 3)
-
-    data.push({ frequency: freq, magnitude })
-  }
-
-  return data
-}
-
-const balancerData = ref(generateBalancerFFT())
-const oakdData = ref(generateOakDFFT())
+})
 </script>
 
 <template>

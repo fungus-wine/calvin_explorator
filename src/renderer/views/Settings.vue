@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -9,51 +9,63 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const darkMode = ref(true)
-const selectedTheme = ref('default')
+export default defineComponent({
+  components: {
+    Switch,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+  },
+  data() {
+    return {
+      darkMode: true,
+      selectedTheme: 'default',
+      themes: [
+        { value: 'default', label: 'Default' },
+        { value: 'red', label: 'Red' },
+        { value: 'rose', label: 'Rose' },
+        { value: 'orange', label: 'Orange' },
+        { value: 'green', label: 'Green' },
+        { value: 'blue', label: 'Blue' },
+        { value: 'yellow', label: 'Yellow' },
+        { value: 'violet', label: 'Violet' },
+      ]
+    }
+  },
+  mounted() {
+    const savedDarkMode = localStorage.getItem('darkMode')
+    this.darkMode = savedDarkMode !== null ? savedDarkMode === 'true' : true
 
-const themes = [
-  { value: 'default', label: 'Default' },
-  { value: 'red', label: 'Red' },
-  { value: 'rose', label: 'Rose' },
-  { value: 'orange', label: 'Orange' },
-  { value: 'green', label: 'Green' },
-  { value: 'blue', label: 'Blue' },
-  { value: 'yellow', label: 'Yellow' },
-  { value: 'violet', label: 'Violet' },
-]
+    const savedTheme = localStorage.getItem('theme') || 'default'
+    this.selectedTheme = savedTheme
 
-const applyDarkMode = () => {
-  if (darkMode.value) {
-    document.documentElement.classList.add('dark')
-  } else {
-    document.documentElement.classList.remove('dark')
+    this.applyDarkMode()
+    this.applyTheme()
+  },
+  watch: {
+    darkMode(newValue) {
+      localStorage.setItem('darkMode', String(newValue))
+      this.applyDarkMode()
+    },
+    selectedTheme(newValue) {
+      localStorage.setItem('theme', newValue)
+      this.applyTheme()
+    }
+  },
+  methods: {
+    applyDarkMode() {
+      if (this.darkMode) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    },
+    applyTheme() {
+      document.documentElement.dataset.theme = this.selectedTheme
+    }
   }
-}
-
-const applyTheme = () => {
-  document.documentElement.dataset.theme = selectedTheme.value
-}
-
-onMounted(() => {
-  const savedDarkMode = localStorage.getItem('darkMode')
-  darkMode.value = savedDarkMode !== null ? savedDarkMode === 'true' : true
-
-  const savedTheme = localStorage.getItem('theme') || 'default'
-  selectedTheme.value = savedTheme
-
-  applyDarkMode()
-  applyTheme()
-})
-
-watch(darkMode, (newValue) => {
-  localStorage.setItem('darkMode', String(newValue))
-  applyDarkMode()
-})
-
-watch(selectedTheme, (newValue) => {
-  localStorage.setItem('theme', newValue)
-  applyTheme()
 })
 </script>
 

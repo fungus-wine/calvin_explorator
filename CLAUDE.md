@@ -2,14 +2,19 @@
 
 ## Project Overview
 
-Calvin Console is an Electron desktop application for monitoring and diagnostics, built with Vue 3, TypeScript, and shadcn-vue components. Features real-time FFT charts for IMU accelerometer data visualization.
+Calvin Console is an Electron desktop application for monitoring and controlling a balancing robot, built with Vue 3, TypeScript, and shadcn-vue components. Features include:
+- Video stream display with command interface for remote control
+- Real-time FFT charts for IMU accelerometer data visualization
+- Service management with toggle controls
+- PID controller tuning interface with multi-mode adjustment
+- Multi-theme support with light/dark modes
 
 ## Tech Stack
 
 ### Core Technologies
 - **Electron** - Desktop app framework
 - **electron-vite** - Build tooling for Electron + Vite
-- **Vue 3** - UI framework using **Composition API** (`<script setup>`)
+- **Vue 3** - UI framework using **Options API** except for 3rd party add ons such as shadcn-vue components.
 - **TypeScript** - Type-safe JavaScript
 - **Vue Router** - Client-side routing with hash mode
 - **Vite** - Build tool and dev server
@@ -19,7 +24,7 @@ Calvin Console is an Electron desktop application for monitoring and diagnostics
 
 ### Key Conventions
 - **TypeScript** - All code uses TypeScript with `strict: false` for gradual adoption
-- **Composition API** - Use `<script setup lang="ts">` in all Vue components
+- **Options API** - Use Options API with `<script lang="ts">` in all Vue components (not Composition API)
 - **Hash mode routing** - Router uses `createWebHashHistory()` for Electron compatibility
 - **shadcn-vue CLI** - Install components via `npx shadcn-vue@latest add <component>`
 
@@ -39,45 +44,54 @@ src/
     ├── router/              # Vue Router configuration
     │   └── index.ts
     ├── views/               # Page components
-    │   ├── Dashboard.vue
+    │   ├── Dashboard.vue    # Video stream + command input
     │   ├── Services.vue     # Service management with switches
     │   ├── Diagnostics.vue  # FFT charts for IMU data
     │   ├── Telemetry.vue
+    │   ├── PIDTuning.vue    # PID controller tuning interface
     │   └── Settings.vue     # Theme and dark mode controls
     └── components/
         ├── Layout.vue       # Main layout with sidebar
         └── ui/              # shadcn-vue components
             ├── card/
-            ├── sidebar/     # FIXED: Tailwind CSS variable syntax
+            ├── sidebar/     # FIXED: Tailwind CSS variable syntax + mobile trigger
             ├── switch/
             ├── checkbox/
             ├── label/
             ├── select/
             ├── button/
+            ├── textarea/
             ├── separator/
             └── chart/       # Unovis chart helpers
 ```
 
 ## Vue Component Guidelines
 
-### Use Composition API with `<script setup>`
+**Always use Options API with `<script lang="ts">`**
 
 **Standard pattern:**
 ```vue
-<script setup lang="ts">
-import { ref } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 
 interface DataPoint {
   x: number
   y: number
 }
 
-const count = ref(0)
-const data = ref<DataPoint[]>([])
-
-function increment() {
-  count.value++
-}
+export default defineComponent({
+  data() {
+    return {
+      count: 0,
+      items: [] as DataPoint[]
+    }
+  },
+  methods: {
+    increment() {
+      this.count++
+    }
+  }
+})
 </script>
 
 <template>
@@ -85,11 +99,12 @@ function increment() {
 </template>
 ```
 
-### TypeScript Usage
+**Key Points:**
+- Use `defineComponent()` for proper TypeScript inference
 - Define interfaces for data structures
-- Use proper types for props and refs
+- Type arrays and objects in `data()`: `items: [] as Type[]`
 - Avoid `any` types - use specific interfaces
-- Constants for magic numbers
+- Use constants for magic numbers
 
 ## Theming System
 
@@ -122,105 +137,67 @@ Charts automatically adapt to active theme via `--chart-1` and `--chart-2` CSS v
 
 ## Charts (Unovis)
 
-### FFT Diagnostics Charts
 Location: `src/renderer/views/Diagnostics.vue`
 
 **Features:**
-- Two FFT charts: Balancer IMU and OAK-D Pro W IMU
-- Gradient area fills with bright line overlay
-- Theme-aware colors using `var(--chart-1)`
-- Clean axis styling with custom grid lines
+- FFT charts for IMU data (Balancer and OAK-D Pro W)
+- Gradient area fills using SVG linearGradient in `:svg-defs` prop
+- Theme-aware colors: `var(--chart-1)` and `var(--chart-2)`
+- Custom axis styling via scoped styles with `:deep()` selectors
 
-**Chart Pattern:**
-```vue
-<script setup lang="ts">
-import { VisXYContainer, VisArea, VisLine, VisAxis } from '@unovis/vue'
-
-interface FFTDataPoint {
-  frequency: number
-  magnitude: number
-}
-
-const svgDefs = `
-  <linearGradient id="fillFFT" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="5%" stop-color="var(--chart-1)" stop-opacity="0.8"/>
-    <stop offset="95%" stop-color="var(--chart-1)" stop-opacity="0.1"/>
-  </linearGradient>
-`
-</script>
-
-<template>
-  <VisXYContainer :data="chartData" :height="300" :svg-defs="svgDefs">
-    <VisArea color="url(#fillFFT)" :opacity="0.6" />
-    <VisLine color="var(--chart-1)" :line-width="2" />
-    <VisAxis type="x" :tick-line="false" :domain-line="false" />
-  </VisXYContainer>
-</template>
-```
-
-### Chart Styling
-Grid lines, axis labels, and colors are customized via scoped styles with `:deep()` selectors.
+**Key Points:**
+- Import from `@unovis/vue`: `VisXYContainer`, `VisArea`, `VisLine`, `VisAxis`
+- Define gradients in `svgDefs` const, pass to `:svg-defs` prop
+- Reference gradients: `color="url(#gradientId)"`
+- Style internals with `:deep(.unovis-selector)` in scoped styles
+- Grid lines may need `!important` to override defaults
 
 ## Services Page
 
-### Service Management UI
 Location: `src/renderer/views/Services.vue`
 
 **Features:**
 - Toggle switches for enabling/disabling services
-- Theme-aware highlighting when service is enabled
-- Clean card-based layout without visible switches
-- Designed for future remote service control
+- Theme-aware card highlighting when enabled
+- Switch hidden with `sr-only` - entire card is clickable Label
 
-**Pattern:**
-```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
+**Key Points:**
+- Use `Switch` component (not Checkbox) for on/off states
+- Hide switch visually but keep accessible: `class="sr-only"`
+- Style parent Label with `has-data-[state=checked]:bg-primary/5` and `has-data-[state=checked]:border-primary`
+- Dark mode uses `dark:has-data-[state=checked]:bg-primary/10` for stronger contrast
 
-interface Service {
-  id: string
-  title: string
-  description: string
-  enabled: boolean
-}
+## Dashboard Page
 
-const services = ref<Service[]>([...])
-</script>
+Location: `src/renderer/views/Dashboard.vue`
 
-<template>
-  <Label
-    :for="service.id"
-    class="flex items-start rounded-lg border p-4 cursor-pointer transition-colors
-           has-data-[state=checked]:bg-primary/5
-           has-data-[state=checked]:border-primary
-           dark:has-data-[state=checked]:bg-primary/10"
-  >
-    <Switch
-      :id="service.id"
-      v-model:checked="service.enabled"
-      class="sr-only"
-    />
-    <div class="grid gap-1.5 font-normal">
-      <p class="text-sm leading-none font-medium">{{ service.title }}</p>
-      <p class="text-muted-foreground text-sm">{{ service.description }}</p>
-    </div>
-  </Label>
-</template>
-```
+**Features:**
+- 4:3 aspect ratio video placeholder (`aspect-[4/3]`)
+- Multi-line command input (Textarea) with embedded submit button
+- Button positioned absolutely inside textarea (`absolute bottom-3 right-3`)
+- Keyboard: Enter sends, Shift+Enter for new line
+- Centered with `max-w-5xl mx-auto` constraint
 
-**Key Implementation Details:**
-- **Switch vs Checkbox**: Uses `Switch` component (not `Checkbox`) as it's semantically correct for on/off service states
-- **Hidden Controls**: Switch is hidden with `sr-only` class - entire card is clickable
-- **Theme Integration**: Enabled state uses `primary` color variables, automatically adapts to active theme
-- **State Selectors**: Uses `has-data-[state=checked]` to style parent based on switch state
-- **Accessibility**: `sr-only` keeps controls accessible to screen readers while hiding them visually
+**Key Points:**
+- Remove `disabled:opacity-50` from buttons to keep theme colors bright when disabled
+- Use `:stroke-width="3"` on icons for bolder appearance
+- Always call `preventDefault()` on Enter key to avoid unwanted newlines before submit
 
-**Styling States:**
-- Default: Standard border
-- Enabled (light): `bg-primary/5` + `border-primary`
-- Enabled (dark): `bg-primary/10` + `border-primary`
+## PID Tuning Page
+
+Location: `src/renderer/views/PIDTuning.vue`
+
+**Features:**
+- Tilt and Velocity PID controllers (P, I, D parameters)
+- Three tuning modes: Ultrafine (1%), Fine (10%), Coarse (25%)
+- Readonly inputs with ChevronUp/Down button controls
+- Border flashes `border-primary` on value change (200ms timeout)
+
+**Key Points:**
+- Readonly inputs styled with `bg-muted text-center font-mono focus:outline-none`
+- Percentage adjustments: `value * (1 ± percentage)`, rounded to 3 decimals
+- Flash animation: Reactive state + setTimeout(200ms) + `transition-colors` class
+- Mode toggle buttons use `:variant="mode === 'active' ? 'default' : 'outline'"`
 
 ## shadcn-vue Components
 
@@ -234,51 +211,25 @@ Components are installed to `src/renderer/components/ui/`.
 ### Known Issues & Fixes
 
 **Sidebar collapsible bug:**
-The CLI-installed Sidebar component has incorrect Tailwind CSS syntax. Fixed in our version:
-```vue
-<!-- Incorrect (from CLI): -->
-<div class="w-[--sidebar-width]" />
+- CLI-installed Sidebar has incorrect syntax: `w-[--sidebar-width]`
+- Fix: Use `w-[var(--sidebar-width)]` (proper Tailwind v4 CSS variable syntax)
+- See comment in `Sidebar.vue` for details
 
-<!-- Correct (our fix): -->
-<div class="w-[var(--sidebar-width)]" />
-```
-
-See comment in `src/renderer/components/ui/sidebar/Sidebar.vue` for details.
+**SidebarTrigger mobile visibility:**
+- Trigger should only show when sidebar becomes Sheet drawer on mobile (< 768px)
+- Fix: Add `md:hidden` class directly in `SidebarTrigger.vue` component
+- Cleaner than adding per-use in Layout.vue
 
 ## Electron Configuration
 
-### Window Setup (Main Process)
-Prevents white flash on startup:
-```javascript
-const mainWindow = new BrowserWindow({
-  width: 1200,
-  height: 800,
-  backgroundColor: '#1a1a1a',  // Dark background
-  show: false,                  // Don't show until ready
-  webPreferences: {
-    preload: path.join(__dirname, '../preload/index.cjs'),
-    contextIsolation: true,
-    nodeIntegration: false
-  }
-})
+**Window Setup** (prevents white flash on startup):
+- `backgroundColor: '#1a1a1a'` - dark background while loading
+- `show: false` + `mainWindow.once('ready-to-show', () => mainWindow.show())` - wait for render
 
-mainWindow.once('ready-to-show', () => {
-  mainWindow.show()
-})
-```
-
-### HTML Setup
-Inline styles in `index.html` ensure dark background during load:
-```html
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background-color: #1a1a1a;
-    color: #fafafa;
-  }
-</style>
-```
+**HTML Setup**:
+- Keep `index.html` minimal with no inline styles
+- All styling goes in `style.css` using theme CSS variables
+- **Critical**: Inline styles override theme system and break light/dark mode switching
 
 ## Development Commands
 
@@ -291,22 +242,14 @@ npm run preview  # Preview production build
 
 ## Routing
 
-Router uses hash mode for Electron compatibility:
-```typescript
-import { createRouter, createWebHashHistory } from 'vue-router'
-
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes: [...]
-})
-```
-
-URLs: `/#/dashboard`, `/#/diagnostics`, etc.
+- Uses `createWebHashHistory()` for Electron compatibility
+- URLs: `/#/dashboard`, `/#/diagnostics`, etc.
+- Routes defined in `src/renderer/router/index.ts`
 
 ## Common Tasks
 
 ### Adding a New Page
-1. Create `src/renderer/views/PageName.vue` with `<script setup lang="ts">`
+1. Create `src/renderer/views/PageName.vue` with `<script lang="ts">` using Options API
 2. Add route in `src/renderer/router/index.ts`
 3. Add navigation item in `src/renderer/components/Layout.vue`
 
@@ -323,10 +266,15 @@ Components auto-install with dependencies and types.
 3. Use constants for configuration values
 4. Reference theme colors with `var(--chart-1)`
 
+### Keyboard Shortcuts in Inputs
+- Enter = send/submit, Shift+Enter = new line
+- Always `event.preventDefault()` on plain Enter to avoid unwanted newlines
+- Let Shift+Enter use default behavior (creates newline)
+
 ## File Editing Rules
 
 - **Use TypeScript** - `.ts` extension for scripts, `lang="ts"` in Vue files
-- **Use Composition API** - `<script setup lang="ts">` in all Vue components
+- **Use Options API** - `<script lang="ts">` with `defineComponent()` in all Vue components
 - **Define interfaces** - Type all data structures
 - **Extract constants** - No magic numbers
 - **Use theme variables** - Reference CSS variables for colors
@@ -341,15 +289,16 @@ Components auto-install with dependencies and types.
 
 ### Vue Components
 - Keep components focused and single-purpose
-- Extract reusable logic into composables
+- Use `defineComponent()` for proper TypeScript inference
 - Use proper TypeScript interfaces for props
-- Prefer `const` over `let` where possible
+- Type data properties: `items: [] as Type[]`
 
 ### Styling
 - Use Tailwind classes for layout and spacing
-- Use theme CSS variables for colors
+- Use theme CSS variables for colors (always `var(--variable)` syntax)
 - Use scoped styles for component-specific styling
 - Avoid inline styles except for dynamic values
+- **Button brightness**: Remove `disabled:opacity-50` to keep theme colors bright when button is disabled - use `disabled:pointer-events-none` instead to prevent clicks
 
 ### Charts
 - Extract chart configuration to constants
@@ -368,15 +317,21 @@ Components auto-install with dependencies and types.
 ## Troubleshooting
 
 ### White Flash on Startup
-Fixed via:
+Fixed via Electron configuration only:
 1. `backgroundColor: '#1a1a1a'` in BrowserWindow
 2. `show: false` + `ready-to-show` event
-3. Inline background styles in HTML
+
+**Do not use inline styles** - they override theme variables and break light/dark mode.
+
+### Light Mode Issues
+**Problem**: Inline styles in `index.html` with hardcoded colors (e.g., `color: #fafafa`) will override theme CSS variables and break light mode (white text on white background).
+
+**Solution**: Remove all inline styles from HTML. Let theme system handle all colors via CSS variables in `style.css`. The `@layer base` section in `style.css` sets `background-color: var(--background)` and `color: var(--foreground)` which automatically adapt to light/dark mode and selected theme.
 
 ### shadcn-vue Compatibility
 - Some CLI-installed components may have Tailwind v4 syntax issues
 - Check and fix CSS variable syntax: `var(--variable)` not `--variable`
-- Components tested: Sidebar, Card, Button, Switch, Select
+- Components tested: Sidebar, Card, Button, Switch, Select, Textarea
 
 ### Chart Styling
 - Use `:deep()` for styling Unovis chart internals

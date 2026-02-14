@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { ref } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -15,58 +15,70 @@ interface PIDController {
 
 type TuningMode = 'ultrafine' | 'fine' | 'coarse'
 
-const tuningMode = ref<TuningMode>('fine')
-const flashingParam = ref<string | null>(null)
-
-const controllers = ref<PIDController[]>([
-  {
-    id: 'tilt',
-    name: 'Tilt Controller',
-    description: 'Main balancing PID for pitch control',
-    p: 25.0,
-    i: 0.5,
-    d: 2.0
+export default defineComponent({
+  components: {
+    ChevronUp,
+    ChevronDown,
+    Button,
+    Label
   },
-  {
-    id: 'velocity',
-    name: 'Velocity Controller',
-    description: 'Forward/backward movement control',
-    p: 15.0,
-    i: 0.3,
-    d: 1.5
-  }
-])
-
-function adjustValue(controllerId: string, param: 'p' | 'i' | 'd', direction: 'up' | 'down') {
-  const controller = controllers.value.find(c => c.id === controllerId)
-  if (!controller) return
-
-  let percentage: number
-  if (tuningMode.value === 'ultrafine') {
-    percentage = 0.01
-  } else if (tuningMode.value === 'fine') {
-    percentage = 0.10
-  } else {
-    percentage = 0.25
-  }
-
-  const multiplier = direction === 'up' ? (1 + percentage) : (1 - percentage)
-
-  const currentValue = controller[param]
-  const newValue = currentValue * multiplier
-
-  // Round to 3 decimal places
-  controller[param] = Math.round(newValue * 1000) / 1000
-
-  // Flash the border
-  const key = `${controllerId}-${param}`
-  flashingParam.value = key
-  setTimeout(() => {
-    if (flashingParam.value === key) {
-      flashingParam.value = null
+  data() {
+    return {
+      tuningMode: 'fine' as TuningMode,
+      flashingParam: null as string | null,
+      controllers: [
+        {
+          id: 'tilt',
+          name: 'Tilt Controller',
+          description: 'Main balancing PID for pitch control',
+          p: 25.0,
+          i: 0.5,
+          d: 2.0
+        },
+        {
+          id: 'velocity',
+          name: 'Velocity Controller',
+          description: 'Forward/backward movement control',
+          p: 15.0,
+          i: 0.3,
+          d: 1.5
+        }
+      ] as PIDController[]
     }
-  }, 200)
-}
+  },
+  methods: {
+    adjustValue(controllerId: string, param: 'p' | 'i' | 'd', direction: 'up' | 'down') {
+      const controller = this.controllers.find(c => c.id === controllerId)
+      if (!controller) return
+
+      let percentage: number
+      if (this.tuningMode === 'ultrafine') {
+        percentage = 0.01
+      } else if (this.tuningMode === 'fine') {
+        percentage = 0.10
+      } else {
+        percentage = 0.25
+      }
+
+      const multiplier = direction === 'up' ? (1 + percentage) : (1 - percentage)
+
+      const currentValue = controller[param]
+      const newValue = currentValue * multiplier
+
+      // Round to 3 decimal places
+      controller[param] = Math.round(newValue * 1000) / 1000
+
+      // Flash the border
+      const key = `${controllerId}-${param}`
+      this.flashingParam = key
+      setTimeout(() => {
+        if (this.flashingParam === key) {
+          this.flashingParam = null
+        }
+      }, 200)
+    }
+  }
+})
 </script>
 
 <template>

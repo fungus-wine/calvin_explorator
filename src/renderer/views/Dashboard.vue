@@ -1,33 +1,44 @@
-<script setup lang="ts">
-import { ref } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ArrowUp } from 'lucide-vue-next'
 
-const commandInput = ref('')
+export default defineComponent({
+  components: {
+    Button,
+    Textarea,
+    ArrowUp
+  },
+  data() {
+    return {
+      commandInput: ''
+    }
+  },
+  methods: {
+    sendCommand() {
+      if (!this.commandInput.trim()) return
 
-function sendCommand() {
-  if (!commandInput.value.trim()) return
+      // TODO: Send command to remote host
+      console.log('Sending command:', this.commandInput)
 
-  // TODO: Send command to remote host
-  console.log('Sending command:', commandInput.value)
-
-  // Clear input after sending
-  commandInput.value = ''
-}
-
-function handleKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
-    if (event.shiftKey) {
-      // Shift+Enter: allow default behavior (new line)
-      return
-    } else {
-      // Enter alone: send message
-      event.preventDefault()
-      sendCommand()
+      // Clear input after sending
+      this.commandInput = ''
+    },
+    handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Enter') {
+        if (event.shiftKey) {
+          // Shift+Enter: allow default behavior (new line)
+          return
+        } else {
+          // Enter alone: send message
+          event.preventDefault()
+          this.sendCommand()
+        }
+      }
     }
   }
-}
+})
 </script>
 
 <template>
