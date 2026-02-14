@@ -4,10 +4,14 @@
 
 Calvin Console is an Electron desktop application for monitoring and controlling a balancing robot, built with Vue 3, TypeScript, and shadcn-vue components. Features include:
 - Video stream display with command interface for remote control
+- I2C bus health monitoring with EMI correlation diagnostics
 - Real-time FFT charts for IMU accelerometer data visualization
+- Battery health monitoring via INA228 power sensor
+- ToF distance sensors for obstacle detection
 - Service management with toggle controls
 - PID controller tuning interface with multi-mode adjustment
 - Multi-theme support with light/dark modes
+- Sticky global header with battery status indicator
 
 ## Tech Stack
 
@@ -43,18 +47,22 @@ src/
     ├── style.css            # Global styles + Tailwind + theme system
     ├── router/              # Vue Router configuration
     │   └── index.ts
+    ├── constants/           # Shared constants and configuration
+    │   ├── chart.ts         # Chart config + unified gradient defs
+    │   └── navigation.ts    # Route definitions
     ├── views/               # Page components
     │   ├── Dashboard.vue    # Video stream + command input
     │   ├── Services.vue     # Service management with switches
-    │   ├── Diagnostics.vue  # FFT charts for IMU data
-    │   ├── Telemetry.vue
+    │   ├── Diagnostics.vue  # I2C monitoring + FFT charts for IMU data
+    │   ├── Telemetry.vue    # Battery health + ToF distance sensors
     │   ├── PIDTuning.vue    # PID controller tuning interface
     │   └── Settings.vue     # Theme and dark mode controls
     └── components/
-        ├── Layout.vue       # Main layout with sidebar
+        ├── Layout.vue       # Main layout with sticky header + sidebar
         └── ui/              # shadcn-vue components
             ├── card/
             ├── sidebar/     # FIXED: Tailwind CSS variable syntax + mobile trigger
+            ├── badge/       # Status indicators
             ├── switch/
             ├── checkbox/
             ├── label/
@@ -135,20 +143,30 @@ Themes use OKLCH color space for consistent lightness perception.
 ### Chart Theming
 Charts automatically adapt to active theme via `--chart-1` and `--chart-2` CSS variables.
 
+**Unified Gradient System:**
+- All area charts use `CHART_GRADIENT_DEFS` from `@/constants/chart`
+- Provides `fillChart1` and `fillChart2` gradients
+- Automatically theme-aware (uses CSS variables)
+- Single definition shared across all charts
+
 ## Charts (Unovis)
 
-Location: `src/renderer/views/Diagnostics.vue`
+Used in: `Diagnostics.vue`, `Telemetry.vue`
 
 **Features:**
-- FFT charts for IMU data (Balancer and OAK-D Pro W)
+- FFT charts for IMU accelerometer data (Balancer and OAK-D Pro W)
+- I2C bus error rate and motor current timelines
+- Battery current draw timeline
+- ToF distance sensor history
 - Gradient area fills using SVG linearGradient in `:svg-defs` prop
 - Theme-aware colors: `var(--chart-1)` and `var(--chart-2)`
 - Custom axis styling via scoped styles with `:deep()` selectors
 
 **Key Points:**
 - Import from `@unovis/vue`: `VisXYContainer`, `VisArea`, `VisLine`, `VisAxis`
-- Define gradients in `svgDefs` const, pass to `:svg-defs` prop
-- Reference gradients: `color="url(#gradientId)"`
+- Import `CHART_GRADIENT_DEFS` from `@/constants/chart`
+- Pass to all containers: `:svg-defs="svgDefs"` where `svgDefs: CHART_GRADIENT_DEFS`
+- Reference gradients: `color="url(#fillChart1)"` or `color="url(#fillChart2)"`
 - Style internals with `:deep(.unovis-selector)` in scoped styles
 - Grid lines may need `!important` to override defaults
 
@@ -198,6 +216,84 @@ Location: `src/renderer/views/PIDTuning.vue`
 - Percentage adjustments: `value * (1 ± percentage)`, rounded to 3 decimals
 - Flash animation: Reactive state + setTimeout(200ms) + `transition-colors` class
 - Mode toggle buttons use `:variant="mode === 'active' ? 'default' : 'outline'"`
+
+## Diagnostics Page
+
+Location: `src/renderer/views/Diagnostics.vue`
+
+**Features:**
+- **I2C Bus Monitoring** - Real-time health monitoring for two I2C buses
+  - Bus 0: Sensors
+  - Bus 1: Motor Controllers (shows EMI correlation with motor current)
+  - Two stacked charts per bus: Error Rate (top), Motor Current (bottom)
+  - Left/Right motor current displayed separately
+  - Status badges, error metrics, diagnostic info
+  - Aligned time axes for visual correlation
+- **IMU FFT Charts** - Frequency spectrum analysis
+  - Balancer IMU accelerometer data
+  - OAK-D Pro W IMU accelerometer data
+  - Gradient area charts showing vibration patterns
+
+**Key Points:**
+- I2C cards appear above FFT charts
+- Error rate shows I2C transaction failures over time
+- Motor current charts show left/right motors with different colors (`--chart-1`, `--chart-2`)
+- EMI correlation visible when motor current spikes coincide with error rate increases
+- All charts use unified `CHART_GRADIENT_DEFS` for consistent styling
+- 200px chart height for I2C (more compact), 300px for FFT
+
+## Telemetry Page
+
+Location: `src/renderer/views/Telemetry.vue`
+
+**Features:**
+- **Battery Health Monitoring** - 12V LiPo (3S) via Adafruit INA228
+  - Voltage, current, power, temperature metrics
+  - Current draw timeline chart
+  - Status badge (Good/Warning/Critical based on voltage thresholds)
+  - Temperature warning indicator (>35°C)
+  - Battery icon displayed in global header (not on page)
+- **ToF Distance Sensors** - VL53L4CX obstacle detection (Adafruit 5425)
+  - Front and rear sensors in side-by-side cards
+  - Distance measurement in millimeters
+  - Range status badge (Valid/Out of Range/Error)
+  - Signal quality percentage
+  - Distance history charts
+
+**Key Points:**
+- Battery voltage thresholds: <9.5V critical, <10.5V warning
+- State of charge calculated from voltage curve (12.6V = 100%, 9.0V = 0%)
+- ToF valid range: 50mm - 4000mm
+- Signal quality degrades at very close (<200mm) or far (>3000mm) distances
+- Front sensor uses `--chart-1`, rear uses `--chart-2`
+
+## Layout Component
+
+Location: `src/renderer/components/Layout.vue`
+
+**Features:**
+- Sticky global header with battery status indicator
+- Collapsible sidebar navigation
+- Main content area with router view
+- STOP button (destructive variant) in top-right
+
+**Sticky Header:**
+- Classes: `sticky top-0 z-10 bg-background`
+- Stays visible when scrolling
+- Contains: SidebarTrigger, Battery Icon, STOP button
+
+**Battery Icon:**
+- Visual battery shape with fill level
+- Color-coded: Green (>50%), Yellow (20-50%), Red (≤20%)
+- Percentage display
+- Compact size for header: 12px × 6px
+- Data generated in Layout component (dummy data for now)
+
+**Key Points:**
+- Battery level state managed in Layout component
+- Header background uses theme variable to match page background
+- `z-10` ensures header stays above scrolling content
+- Battery icon width calculated: `Math.max(2, (batteryLevel / 100) * 43) + 'px'`
 
 ## shadcn-vue Components
 
