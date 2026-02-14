@@ -1,7 +1,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { VisXYContainer, VisArea, VisLine, VisAxis } from '@unovis/vue'
+import { CHART_CONFIG, FFT_GRADIENT_DEFS, FFT_CONFIG } from '@/constants/chart'
 
 // Type definition for FFT data points
 interface FFTDataPoint {
@@ -9,28 +11,15 @@ interface FFTDataPoint {
   magnitude: number
 }
 
-// Chart styling constants
-const CHART_HEIGHT = 300
-const AREA_OPACITY = 0.6
-const LINE_WIDTH = 2
-const X_AXIS_TICKS = 6
-const Y_AXIS_TICKS = 3
-
-// SVG gradient definition that uses CSS variables for theming
-const svgDefs = `
-  <linearGradient id="fillFFT" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="5%" stop-color="var(--chart-1)" stop-opacity="0.8"/>
-    <stop offset="95%" stop-color="var(--chart-1)" stop-opacity="0.1"/>
-  </linearGradient>
-`
-
 export default defineComponent({
+  name: 'Diagnostics',
   components: {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
+    ErrorBoundary,
     VisXYContainer,
     VisArea,
     VisLine,
@@ -38,23 +27,28 @@ export default defineComponent({
   },
   data() {
     return {
-      CHART_HEIGHT,
-      AREA_OPACITY,
-      LINE_WIDTH,
-      X_AXIS_TICKS,
-      Y_AXIS_TICKS,
-      svgDefs,
-      balancerData: this.generateBalancerFFT(),
-      oakdData: this.generateOakDFFT()
+      CHART_HEIGHT: CHART_CONFIG.HEIGHT,
+      AREA_OPACITY: CHART_CONFIG.AREA_OPACITY,
+      LINE_WIDTH: CHART_CONFIG.LINE_WIDTH,
+      X_AXIS_TICKS: CHART_CONFIG.X_AXIS_TICKS,
+      Y_AXIS_TICKS: CHART_CONFIG.Y_AXIS_TICKS,
+      svgDefs: FFT_GRADIENT_DEFS,
+      balancerData: [] as FFTDataPoint[],
+      oakdData: [] as FFTDataPoint[]
     }
+  },
+  created() {
+    // Initialize chart data after component is created
+    this.balancerData = this.generateBalancerFFT()
+    this.oakdData = this.generateOakDFFT()
   },
   methods: {
     // Generate realistic FFT data (frequency spectrum)
     generateBalancerFFT(): FFTDataPoint[] {
       const data: FFTDataPoint[] = []
 
-      for (let i = 0; i <= 100; i++) {
-        const freq = i * 0.5 // 0 to 50 Hz in 0.5 Hz steps
+      for (let i = 0; i <= FFT_CONFIG.DATA_POINTS; i++) {
+        const freq = i * FFT_CONFIG.FREQ_STEP
 
         // Base noise that decays with frequency
         let magnitude = Math.exp(-freq / 30) * (0.05 + Math.random() * 0.03)
@@ -79,8 +73,8 @@ export default defineComponent({
     generateOakDFFT(): FFTDataPoint[] {
       const data: FFTDataPoint[] = []
 
-      for (let i = 0; i <= 100; i++) {
-        const freq = i * 0.5 // 0 to 50 Hz in 0.5 Hz steps
+      for (let i = 0; i <= FFT_CONFIG.DATA_POINTS; i++) {
+        const freq = i * FFT_CONFIG.FREQ_STEP
 
         // Base noise that decays with frequency
         let magnitude = Math.exp(-freq / 25) * (0.04 + Math.random() * 0.02)
@@ -112,119 +106,123 @@ export default defineComponent({
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Balancer IMU FFT -->
-      <Card>
-        <CardHeader>
-          <CardTitle>Balancer IMU</CardTitle>
-          <CardDescription>FFT - Accelerometer Data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <VisXYContainer
-            :data="balancerData"
-            :height="CHART_HEIGHT"
-            :svg-defs="svgDefs"
-            class="chart-container"
-          >
-            <VisArea
-              :x="(d: FFTDataPoint) => d.frequency"
-              :y="(d: FFTDataPoint) => d.magnitude"
-              color="url(#fillFFT)"
-              :opacity="AREA_OPACITY"
-            />
-            <VisLine
-              :x="(d: FFTDataPoint) => d.frequency"
-              :y="(d: FFTDataPoint) => d.magnitude"
-              color="var(--chart-1)"
-              :line-width="LINE_WIDTH"
-            />
-            <VisAxis
-              type="x"
-              :x="(d: FFTDataPoint) => d.frequency"
-              label="Frequency (Hz)"
-              :tick-line="false"
-              :domain-line="false"
-              :grid-line="false"
-              :num-ticks="X_AXIS_TICKS"
-            />
-            <VisAxis
-              type="y"
-              label="Magnitude"
-              :num-ticks="Y_AXIS_TICKS"
-              :tick-line="false"
-              :domain-line="false"
-            />
-          </VisXYContainer>
-        </CardContent>
-      </Card>
+      <ErrorBoundary>
+        <Card>
+          <CardHeader>
+            <CardTitle>Balancer IMU</CardTitle>
+            <CardDescription>FFT - Accelerometer Data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VisXYContainer
+              :data="balancerData"
+              :height="CHART_HEIGHT"
+              :svg-defs="svgDefs"
+              class="chart-container"
+            >
+              <VisArea
+                :x="(d: FFTDataPoint) => d.frequency"
+                :y="(d: FFTDataPoint) => d.magnitude"
+                color="url(#fillFFT)"
+                :opacity="AREA_OPACITY"
+              />
+              <VisLine
+                :x="(d: FFTDataPoint) => d.frequency"
+                :y="(d: FFTDataPoint) => d.magnitude"
+                color="var(--chart-1)"
+                :line-width="LINE_WIDTH"
+              />
+              <VisAxis
+                type="x"
+                :x="(d: FFTDataPoint) => d.frequency"
+                label="Frequency (Hz)"
+                :tick-line="false"
+                :domain-line="false"
+                :grid-line="false"
+                :num-ticks="X_AXIS_TICKS"
+              />
+              <VisAxis
+                type="y"
+                label="Magnitude"
+                :num-ticks="Y_AXIS_TICKS"
+                :tick-line="false"
+                :domain-line="false"
+              />
+            </VisXYContainer>
+          </CardContent>
+        </Card>
+      </ErrorBoundary>
 
       <!-- OAK-D Pro W IMU FFT -->
-      <Card>
-        <CardHeader>
-          <CardTitle>OAK-D Pro W IMU</CardTitle>
-          <CardDescription>FFT - Accelerometer Data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <VisXYContainer
-            :data="oakdData"
-            :height="CHART_HEIGHT"
-            :svg-defs="svgDefs"
-            class="chart-container"
-          >
-            <VisArea
-              :x="(d: FFTDataPoint) => d.frequency"
-              :y="(d: FFTDataPoint) => d.magnitude"
-              color="url(#fillFFT)"
-              :opacity="AREA_OPACITY"
-            />
-            <VisLine
-              :x="(d: FFTDataPoint) => d.frequency"
-              :y="(d: FFTDataPoint) => d.magnitude"
-              color="var(--chart-1)"
-              :line-width="LINE_WIDTH"
-            />
-            <VisAxis
-              type="x"
-              :x="(d: FFTDataPoint) => d.frequency"
-              label="Frequency (Hz)"
-              :tick-line="false"
-              :domain-line="false"
-              :grid-line="false"
-              :num-ticks="X_AXIS_TICKS"
-            />
-            <VisAxis
-              type="y"
-              label="Magnitude"
-              :num-ticks="Y_AXIS_TICKS"
-              :tick-line="false"
-              :domain-line="false"
-            />
-          </VisXYContainer>
-        </CardContent>
-      </Card>
+      <ErrorBoundary>
+        <Card>
+          <CardHeader>
+            <CardTitle>OAK-D Pro W IMU</CardTitle>
+            <CardDescription>FFT - Accelerometer Data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VisXYContainer
+              :data="oakdData"
+              :height="CHART_HEIGHT"
+              :svg-defs="svgDefs"
+              class="chart-container"
+            >
+              <VisArea
+                :x="(d: FFTDataPoint) => d.frequency"
+                :y="(d: FFTDataPoint) => d.magnitude"
+                color="url(#fillFFT)"
+                :opacity="AREA_OPACITY"
+              />
+              <VisLine
+                :x="(d: FFTDataPoint) => d.frequency"
+                :y="(d: FFTDataPoint) => d.magnitude"
+                color="var(--chart-1)"
+                :line-width="LINE_WIDTH"
+              />
+              <VisAxis
+                type="x"
+                :x="(d: FFTDataPoint) => d.frequency"
+                label="Frequency (Hz)"
+                :tick-line="false"
+                :domain-line="false"
+                :grid-line="false"
+                :num-ticks="X_AXIS_TICKS"
+              />
+              <VisAxis
+                type="y"
+                label="Magnitude"
+                :num-ticks="Y_AXIS_TICKS"
+                :tick-line="false"
+                :domain-line="false"
+              />
+            </VisXYContainer>
+          </CardContent>
+        </Card>
+      </ErrorBoundary>
     </div>
   </div>
 </template>
 
 <style scoped>
 .chart-container {
-  --vis-axis-grid-color: oklch(0.3 0 0);
-  --vis-axis-tick-color: oklch(0.5 0 0);
-  --vis-axis-tick-label-color: oklch(0.5 0 0);
+  --vis-axis-grid-color: var(--muted);
+  --vis-axis-tick-color: var(--muted-foreground);
+  --vis-axis-tick-label-color: var(--muted-foreground);
 }
 
 /* Grid lines - thin and crisp */
 :deep(.chart-container svg .grid line) {
-  stroke: oklch(0.3 0 0) !important;
+  stroke: var(--muted) !important;
   stroke-width: 1px !important;
   shape-rendering: crispEdges !important;
 }
 
 /* Axis tick labels (numbers) */
 :deep(.chart-container svg .tick text) {
-  fill: #888888 !important;
+  fill: var(--muted-foreground) !important;
 }
 
 /* Axis titles (Frequency, Magnitude) */
 :deep(.chart-container svg text:not(.tick text)) {
-  fill: #aaaaaa !important;
+  fill: var(--muted-foreground) !important;
 }
 </style>

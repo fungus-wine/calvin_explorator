@@ -1,29 +1,30 @@
 <script lang="ts">
+import 'vue-sonner/style.css'
 import { defineComponent } from 'vue'
 import Layout from './components/Layout.vue'
+import ErrorBoundary from './components/ErrorBoundary.vue'
+import { Toaster } from '@/components/ui/sonner'
+import { useThemeStore } from './stores/theme'
 
 export default defineComponent({
+  name: 'App',
   components: {
-    Layout
+    Layout,
+    ErrorBoundary,
+    Toaster
   },
   mounted() {
-    // Apply dark mode on app load, default to dark
-    const savedDarkMode = localStorage.getItem('darkMode')
-    const darkMode = savedDarkMode !== null ? savedDarkMode === 'true' : true
-
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-
-    // Apply saved theme, default to 'default'
-    const savedTheme = localStorage.getItem('theme') || 'default'
-    document.documentElement.dataset.theme = savedTheme
+    const themeStore = useThemeStore()
+    themeStore.initialize()
   }
 })
 </script>
 
 <template>
-  <Layout />
+  <div>
+    <ErrorBoundary>
+      <Layout />
+    </ErrorBoundary>
+    <Toaster position="top-center" />
+  </div>
 </template>

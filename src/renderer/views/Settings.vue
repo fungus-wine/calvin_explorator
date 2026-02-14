@@ -1,5 +1,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
+import { mapState, mapActions } from 'pinia'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -8,8 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useThemeStore } from '@/stores/theme'
+import { AVAILABLE_THEMES, THEME_LABELS } from '@/constants/theme'
 
 export default defineComponent({
+  name: 'Settings',
   components: {
     Switch,
     Select,
@@ -20,51 +24,35 @@ export default defineComponent({
   },
   data() {
     return {
-      darkMode: true,
-      selectedTheme: 'default',
-      themes: [
-        { value: 'default', label: 'Default' },
-        { value: 'red', label: 'Red' },
-        { value: 'rose', label: 'Rose' },
-        { value: 'orange', label: 'Orange' },
-        { value: 'green', label: 'Green' },
-        { value: 'blue', label: 'Blue' },
-        { value: 'yellow', label: 'Yellow' },
-        { value: 'violet', label: 'Violet' },
-      ]
+      themes: AVAILABLE_THEMES.map(theme => ({
+        value: theme,
+        label: THEME_LABELS[theme]
+      }))
     }
   },
-  mounted() {
-    const savedDarkMode = localStorage.getItem('darkMode')
-    this.darkMode = savedDarkMode !== null ? savedDarkMode === 'true' : true
+  computed: {
+    ...mapState(useThemeStore, ['darkMode', 'selectedTheme']),
 
-    const savedTheme = localStorage.getItem('theme') || 'default'
-    this.selectedTheme = savedTheme
-
-    this.applyDarkMode()
-    this.applyTheme()
-  },
-  watch: {
-    darkMode(newValue) {
-      localStorage.setItem('darkMode', String(newValue))
-      this.applyDarkMode()
+    // Two-way computed properties for v-model
+    darkModeModel: {
+      get(): boolean {
+        return this.darkMode
+      },
+      set(value: boolean): void {
+        this.setDarkMode(value)
+      }
     },
-    selectedTheme(newValue) {
-      localStorage.setItem('theme', newValue)
-      this.applyTheme()
+    selectedThemeModel: {
+      get(): string {
+        return this.selectedTheme
+      },
+      set(value: string): void {
+        this.setTheme(value)
+      }
     }
   },
   methods: {
-    applyDarkMode() {
-      if (this.darkMode) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    },
-    applyTheme() {
-      document.documentElement.dataset.theme = this.selectedTheme
-    }
+    ...mapActions(useThemeStore, ['setDarkMode', 'setTheme'])
   }
 })
 </script>
@@ -86,7 +74,7 @@ export default defineComponent({
               </p>
             </div>
             <div class="w-48">
-              <Select v-model="selectedTheme">
+              <Select v-model="selectedThemeModel">
                 <SelectTrigger>
                   <SelectValue placeholder="Select a theme" />
                 </SelectTrigger>
@@ -106,7 +94,7 @@ export default defineComponent({
                 Toggle between light and dark theme
               </p>
             </div>
-            <Switch v-model="darkMode" />
+            <Switch v-model="darkModeModel" />
           </div>
         </div>
       </div>

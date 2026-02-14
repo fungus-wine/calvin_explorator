@@ -33,7 +33,7 @@ const routes = [
   },
   {
     path: '/pid-tuning',
-    name: 'PID Tuning',
+    name: 'PIDTuning',
     component: PIDTuning
   },
   {

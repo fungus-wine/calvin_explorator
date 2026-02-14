@@ -3,6 +3,7 @@ import { defineComponent } from 'vue'
 import { ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { adjustWithTuningMode } from '@/utils/pid'
 
 interface PIDController {
   id: string
@@ -16,6 +17,7 @@ interface PIDController {
 type TuningMode = 'ultrafine' | 'fine' | 'coarse'
 
 export default defineComponent({
+  name: 'PIDTuning',
   components: {
     ChevronUp,
     ChevronDown,
@@ -47,26 +49,12 @@ export default defineComponent({
     }
   },
   methods: {
-    adjustValue(controllerId: string, param: 'p' | 'i' | 'd', direction: 'up' | 'down') {
+    adjustValue(controllerId: string, param: 'p' | 'i' | 'd', direction: 'up' | 'down'): void {
       const controller = this.controllers.find(c => c.id === controllerId)
       if (!controller) return
 
-      let percentage: number
-      if (this.tuningMode === 'ultrafine') {
-        percentage = 0.01
-      } else if (this.tuningMode === 'fine') {
-        percentage = 0.10
-      } else {
-        percentage = 0.25
-      }
-
-      const multiplier = direction === 'up' ? (1 + percentage) : (1 - percentage)
-
-      const currentValue = controller[param]
-      const newValue = currentValue * multiplier
-
-      // Round to 3 decimal places
-      controller[param] = Math.round(newValue * 1000) / 1000
+      // Calculate new value using utility
+      controller[param] = adjustWithTuningMode(controller[param], this.tuningMode, direction)
 
       // Flash the border
       const key = `${controllerId}-${param}`

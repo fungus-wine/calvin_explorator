@@ -3,6 +3,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* TODO: Remove when shadcn-vue fixes Tailwind 4 compatibility for Sonner */
+/* Temporary workaround for toast styling with Tailwind 4 */
+[data-sonner-toast] {
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
+  border: 1px solid var(--border) !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: var(--muted-foreground) !important;
+}
+
+[data-sonner-toast] [data-button][data-action] {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+[data-sonner-toast] [data-button][data-cancel] {
+  background: var(--muted) !important;
+  color: var(--muted-foreground) !important;
+}
+
 @theme {
   /* shadcn/vue color system */
   --color-border: var(--border);

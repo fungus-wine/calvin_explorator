@@ -18,16 +18,14 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
+import { NAV_TITLES, NAV_ROUTES, type NavigationItem } from '@/constants/navigation'
 
 export default defineComponent({
+  name: 'Layout',
   components: {
-    TvMinimal,
-    Settings,
-    Activity,
-    Radio,
-    Blocks,
+    // Navigation icons don't need registration - used dynamically via <component :is>
+    // OctagonX is used directly in template, so it needs registration
     OctagonX,
-    Sliders,
     Sidebar,
     SidebarContent,
     SidebarFooter,
@@ -48,36 +46,36 @@ export default defineComponent({
     return {
       items: [
         {
-          title: 'Dashboard',
-          url: '/dashboard',
+          title: NAV_TITLES.DASHBOARD,
+          url: NAV_ROUTES.DASHBOARD,
           icon: TvMinimal,
         },
         {
-          title: 'Services',
-          url: '/services',
+          title: NAV_TITLES.SERVICES,
+          url: NAV_ROUTES.SERVICES,
           icon: Blocks,
         },
         {
-          title: 'Diagnostics',
-          url: '/diagnostics',
+          title: NAV_TITLES.DIAGNOSTICS,
+          url: NAV_ROUTES.DIAGNOSTICS,
           icon: Activity,
         },
         {
-          title: 'Telemetry',
-          url: '/telemetry',
+          title: NAV_TITLES.TELEMETRY,
+          url: NAV_ROUTES.TELEMETRY,
           icon: Radio,
         },
         {
-          title: 'PID Tuning',
-          url: '/pid-tuning',
+          title: NAV_TITLES.PID_TUNING,
+          url: NAV_ROUTES.PID_TUNING,
           icon: Sliders,
         },
         {
-          title: 'Settings',
-          url: '/settings',
+          title: NAV_TITLES.SETTINGS,
+          url: NAV_ROUTES.SETTINGS,
           icon: Settings,
         },
-      ]
+      ] as NavigationItem[]
     }
   }
 })

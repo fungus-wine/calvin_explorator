@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowUp } from 'lucide-vue-next'
 
 export default defineComponent({
+  name: 'Dashboard',
   components: {
     Button,
     Textarea,
@@ -16,16 +17,17 @@ export default defineComponent({
     }
   },
   methods: {
-    sendCommand() {
+    sendCommand(): void {
       if (!this.commandInput.trim()) return
 
-      // TODO: Send command to remote host
-      console.log('Sending command:', this.commandInput)
+      // TODO: Implement command sending to remote host
+      // This will be replaced with actual IPC call to Electron main process
+      // Example: window.electronAPI.sendCommand(this.commandInput)
 
       // Clear input after sending
       this.commandInput = ''
     },
-    handleKeyDown(event: KeyboardEvent) {
+    handleKeyDown(event: KeyboardEvent): void {
       if (event.key === 'Enter') {
         if (event.shiftKey) {
           // Shift+Enter: allow default behavior (new line)
@@ -36,6 +38,9 @@ export default defineComponent({
           this.sendCommand()
         }
       }
+    },
+    throwTestError(): void {
+      throw new Error('Test error from Dashboard')
     }
   }
 })
@@ -43,7 +48,10 @@ export default defineComponent({
 
 <template>
   <div>
-    <h2 class="text-3xl font-bold mb-6">Dashboard</h2>
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-3xl font-bold">Dashboard</h2>
+      <Button @click="throwTestError">Test Error</Button>
+    </div>
 
     <div class="space-y-6">
       <!-- Video Display Area (4:3 aspect ratio) -->
