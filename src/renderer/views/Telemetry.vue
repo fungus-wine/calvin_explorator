@@ -24,6 +24,20 @@ interface BatteryData {
   timeline: BatteryTimelinePoint[]
 }
 
+// Type definitions for ToF sensor monitoring
+interface ToFTimelinePoint {
+  timestamp: number
+  distance: number
+}
+
+interface ToFSensorData {
+  position: 'front' | 'rear'
+  distance: number
+  rangeStatus: 'valid' | 'out_of_range' | 'error'
+  signalQuality: number
+  timeline: ToFTimelinePoint[]
+}
+
 export default defineComponent({
   name: 'Telemetry',
   components: {
@@ -45,12 +59,17 @@ export default defineComponent({
       AREA_OPACITY: CHART_CONFIG.AREA_OPACITY,
       LINE_WIDTH: CHART_CONFIG.LINE_WIDTH,
       svgDefs: CHART_GRADIENT_DEFS,
-      battery: {} as BatteryData
+      battery: {} as BatteryData,
+      tofFront: {} as ToFSensorData,
+      tofRear: {} as ToFSensorData
     }
   },
   created() {
     // Initialize battery data
     this.battery = this.generateBatteryData()
+    // Initialize ToF sensor data
+    this.tofFront = this.generateToFData('front')
+    this.tofRear = this.generateToFData('rear')
   },
   methods: {
     // Generate realistic battery monitoring data
@@ -132,6 +151,76 @@ export default defineComponent({
         stateOfCharge,
         temperature,
         status,
+        timeline
+      }
+    },
+    // Generate realistic ToF sensor data
+    generateToFData(position: 'front' | 'rear'): ToFSensorData {
+      const TIMELINE_POINTS = 60 // 60 seconds
+      const timeline: ToFTimelinePoint[] = []
+
+      // Generate timeline data
+      for (let i = 0; i < TIMELINE_POINTS; i++) {
+        const timestamp = i
+        let distance = 0
+
+        if (position === 'front') {
+          // Front sensor: Varying distance simulating navigation
+          distance = 1500 + Math.random() * 500 // Baseline 1500-2000mm
+
+          // Obstacle detected at certain times
+          if (i > 15 && i < 25) {
+            distance = 300 + Math.random() * 200 // Close obstacle 300-500mm
+          }
+          if (i > 40 && i < 50) {
+            distance = 800 + Math.random() * 300 // Medium distance obstacle 800-1100mm
+          }
+        } else {
+          // Rear sensor: Mostly clear with occasional wall detection
+          distance = 2500 + Math.random() * 500 // Baseline 2500-3000mm (clear)
+
+          // Wall behind at certain times
+          if (i > 20 && i < 35) {
+            distance = 400 + Math.random() * 200 // Close to wall 400-600mm
+          }
+        }
+
+        timeline.push({
+          timestamp,
+          distance: Math.round(distance)
+        })
+      }
+
+      // Use most recent values
+      const lastPoint = timeline[timeline.length - 1]
+      const distance = lastPoint.distance
+
+      // Determine range status
+      let rangeStatus: 'valid' | 'out_of_range' | 'error'
+      if (distance < 50) {
+        rangeStatus = 'error' // Too close
+      } else if (distance > 4000) {
+        rangeStatus = 'out_of_range' // Beyond max range
+      } else {
+        rangeStatus = 'valid'
+      }
+
+      // Signal quality (0-100, higher is better)
+      // Degrades at very close or far distances
+      let signalQuality = 100
+      if (distance < 200) {
+        signalQuality = 50 + Math.floor(Math.random() * 30)
+      } else if (distance > 3000) {
+        signalQuality = 60 + Math.floor(Math.random() * 30)
+      } else {
+        signalQuality = 85 + Math.floor(Math.random() * 15)
+      }
+
+      return {
+        position,
+        distance,
+        rangeStatus,
+        signalQuality,
         timeline
       }
     }
@@ -229,6 +318,163 @@ export default defineComponent({
                 <VisAxis
                   type="y"
                   label="Current (A)"
+                  :num-ticks="5"
+                  :tick-line="false"
+                  :domain-line="false"
+                />
+              </VisXYContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </ErrorBoundary>
+    </div>
+
+    <!-- ToF Distance Sensors Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Front ToF Sensor -->
+      <ErrorBoundary>
+        <Card>
+          <CardHeader>
+            <CardTitle>Front Distance Sensor</CardTitle>
+            <CardDescription>VL53L4CX ToF - Adafruit 5425</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-3 gap-4">
+              <!-- Distance -->
+              <div>
+                <div class="text-sm text-muted-foreground mb-2">Distance</div>
+                <div class="text-2xl font-mono font-bold">{{ tofFront.distance }}mm</div>
+              </div>
+
+              <!-- Range Status -->
+              <div>
+                <div class="text-sm text-muted-foreground mb-2">Status</div>
+                <Badge
+                  :variant="tofFront.rangeStatus === 'valid' ? 'default' : tofFront.rangeStatus === 'out_of_range' ? 'secondary' : 'destructive'"
+                  class="capitalize"
+                >
+                  {{ tofFront.rangeStatus.replace('_', ' ') }}
+                </Badge>
+              </div>
+
+              <!-- Signal Quality -->
+              <div>
+                <div class="text-sm text-muted-foreground mb-2">Signal</div>
+                <div class="text-2xl font-mono font-bold">{{ tofFront.signalQuality }}%</div>
+              </div>
+            </div>
+
+            <!-- Distance History Chart -->
+            <div>
+              <div class="text-sm font-medium mb-2">Distance History</div>
+              <VisXYContainer
+                :data="tofFront.timeline"
+                :height="CHART_HEIGHT"
+                :svg-defs="svgDefs"
+                class="chart-container"
+              >
+                <VisArea
+                  :x="(d: ToFTimelinePoint) => d.timestamp"
+                  :y="(d: ToFTimelinePoint) => d.distance"
+                  color="url(#fillChart1)"
+                  :opacity="AREA_OPACITY"
+                />
+                <VisLine
+                  :x="(d: ToFTimelinePoint) => d.timestamp"
+                  :y="(d: ToFTimelinePoint) => d.distance"
+                  color="var(--chart-1)"
+                  :line-width="LINE_WIDTH"
+                />
+                <VisAxis
+                  type="x"
+                  :x="(d: ToFTimelinePoint) => d.timestamp"
+                  label="Time (seconds ago)"
+                  :tick-line="false"
+                  :domain-line="false"
+                  :grid-line="false"
+                  :num-ticks="6"
+                />
+                <VisAxis
+                  type="y"
+                  label="Distance (mm)"
+                  :num-ticks="5"
+                  :tick-line="false"
+                  :domain-line="false"
+                />
+              </VisXYContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </ErrorBoundary>
+
+      <!-- Rear ToF Sensor -->
+      <ErrorBoundary>
+        <Card>
+          <CardHeader>
+            <CardTitle>Rear Distance Sensor</CardTitle>
+            <CardDescription>VL53L4CX ToF - Adafruit 5425</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-3 gap-4">
+              <!-- Distance -->
+              <div>
+                <div class="text-sm text-muted-foreground mb-2">Distance</div>
+                <div class="text-2xl font-mono font-bold">{{ tofRear.distance }}mm</div>
+              </div>
+
+              <!-- Range Status -->
+              <div>
+                <div class="text-sm text-muted-foreground mb-2">Status</div>
+                <Badge
+                  :variant="tofRear.rangeStatus === 'valid' ? 'default' : tofRear.rangeStatus === 'out_of_range' ? 'secondary' : 'destructive'"
+                  class="capitalize"
+                >
+                  {{ tofRear.rangeStatus.replace('_', ' ') }}
+                </Badge>
+              </div>
+
+              <!-- Signal Quality -->
+              <div>
+                <div class="text-sm text-muted-foreground mb-2">Signal</div>
+                <div class="text-2xl font-mono font-bold">{{ tofRear.signalQuality }}%</div>
+              </div>
+            </div>
+
+            <!-- Distance History Chart -->
+            <div>
+              <div class="text-sm font-medium mb-2">Distance History</div>
+              <VisXYContainer
+                :data="tofRear.timeline"
+                :height="CHART_HEIGHT"
+                :svg-defs="svgDefs"
+                class="chart-container"
+              >
+                <VisArea
+                  :x="(d: ToFTimelinePoint) => d.timestamp"
+                  :y="(d: ToFTimelinePoint) => d.distance"
+                  color="url(#fillChart2)"
+                  :opacity="AREA_OPACITY"
+                />
+                <VisLine
+                  :x="(d: ToFTimelinePoint) => d.timestamp"
+                  :y="(d: ToFTimelinePoint) => d.distance"
+                  color="var(--chart-2)"
+                  :line-width="LINE_WIDTH"
+                />
+                <VisAxis
+                  type="x"
+                  :x="(d: ToFTimelinePoint) => d.timestamp"
+                  label="Time (seconds ago)"
+                  :tick-line="false"
+                  :domain-line="false"
+                  :grid-line="false"
+                  :num-ticks="6"
+                />
+                <VisAxis
+                  type="y"
+                  label="Distance (mm)"
                   :num-ticks="5"
                   :tick-line="false"
                   :domain-line="false"
