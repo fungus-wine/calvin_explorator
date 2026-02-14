@@ -54,7 +54,7 @@ export const useThemeStore = defineStore('theme', {
     /**
      * Set theme and apply it
      */
-    setTheme(theme: string): void {
+    setTheme(theme: ThemeName): void {
       this.selectedTheme = theme
       this.applyTheme()
       this.saveToLocalStorage()

@@ -85,15 +85,4 @@ export class ServicesService {
   static countEnabledServices(services: Service[]): number {
     return services.filter(service => service.enabled).length
   }
-
-  /**
-   * Check if any critical services are disabled
-   * (Critical services are those enabled by default)
-   */
-  static hasCriticalServicesDisabled(services: Service[]): boolean {
-    const criticalIds = ['telemetry', 'diagnostics', 'analytics']
-    return services.some(
-      service => criticalIds.includes(service.id) && !service.enabled
-    )
-  }
 }

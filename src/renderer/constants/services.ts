@@ -1,6 +1,6 @@
 /**
  * Service configuration constants
- * Defines available services and their default states
+ * Defines available services
  */
 
 export interface Service {
@@ -11,21 +11,20 @@ export interface Service {
 }
 
 /**
- * Default service configurations
- * Services that are enabled by default are critical for system operation
+ * Available services
  */
-export const DEFAULT_SERVICES: readonly Service[] = [
+export const SERVICES: readonly Service[] = [
   {
     id: 'telemetry',
     title: 'Telemetry Service',
     description: 'Real-time monitoring and data collection from connected devices',
-    enabled: true
+    enabled: false
   },
   {
     id: 'diagnostics',
     title: 'Diagnostics Service',
     description: 'Automated system health checks and performance analysis',
-    enabled: true
+    enabled: false
   },
   {
     id: 'logging',
@@ -43,7 +42,7 @@ export const DEFAULT_SERVICES: readonly Service[] = [
     id: 'analytics',
     title: 'Analytics Service',
     description: 'Data processing and statistical analysis of collected metrics',
-    enabled: true
+    enabled: false
   },
   {
     id: 'backup',
@@ -53,4 +52,4 @@ export const DEFAULT_SERVICES: readonly Service[] = [
   }
 ] as const
 
-export type ServiceId = typeof DEFAULT_SERVICES[number]['id']
+export type ServiceId = typeof SERVICES[number]['id']

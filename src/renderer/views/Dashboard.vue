@@ -68,14 +68,15 @@ export default defineComponent({
           @keydown="handleKeyDown"
         />
         <div class="absolute bottom-3 right-3">
-          <button
+          <Button
+            size="icon"
             @click="sendCommand"
-            class="flex items-center justify-center h-8 w-8 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:pointer-events-none shadow-none outline-none focus-visible:ring-primary/50 focus-visible:ring-[3px]"
             :disabled="!commandInput.trim()"
             aria-label="Send command"
+            class="h-8 w-8"
           >
             <ArrowUp class="h-4 w-4" :stroke-width="3" />
-          </button>
+          </Button>
         </div>
       </div>
 

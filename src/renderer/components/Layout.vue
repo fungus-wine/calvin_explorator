@@ -75,7 +75,7 @@ export default defineComponent({
           url: NAV_ROUTES.SETTINGS,
           icon: Settings,
         },
-      ] as NavigationItem[]
+      ] satisfies NavigationItem[]
     }
   }
 })
@@ -121,7 +121,7 @@ export default defineComponent({
     <SidebarInset>
       <header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger />
-        <Button class="ml-auto bg-red-600 hover:bg-red-700 text-white font-semibold">
+        <Button variant="destructive" class="ml-auto font-semibold">
           <OctagonX class="mr-2 h-5 w-5" />
           STOP
         </Button>

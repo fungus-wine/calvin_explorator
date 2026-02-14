@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { DEFAULT_SERVICES, type Service } from '@/constants/services'
+import { SERVICES, type Service } from '@/constants/services'
 import { ServicesService } from '@/services/servicesService'
 import { StorageService } from '@/services/storageService'
 import { STORAGE_KEYS } from '@/constants/storage'
@@ -10,8 +10,7 @@ interface ServicesState {
 
 export const useServicesStore = defineStore('services', {
   state: (): ServicesState => ({
-    // Deep clone to avoid mutating the constant
-    services: JSON.parse(JSON.stringify(DEFAULT_SERVICES))
+    services: [...SERVICES]
   }),
 
   getters: {
@@ -39,7 +38,7 @@ export const useServicesStore = defineStore('services', {
     /**
      * Get service by ID
      */
-    getServiceById(state) {
+    getServiceById(state): (id: string) => Service | undefined {
       return (id: string): Service | undefined => {
         return ServicesService.findServiceById(state.services, id)
       }
@@ -48,7 +47,7 @@ export const useServicesStore = defineStore('services', {
     /**
      * Check if a service is enabled
      */
-    isServiceEnabled(state) {
+    isServiceEnabled(state): (id: string) => boolean {
       return (id: string): boolean => {
         const service = ServicesService.findServiceById(state.services, id)
         return service?.enabled ?? false
@@ -99,14 +98,6 @@ export const useServicesStore = defineStore('services', {
     },
 
     /**
-     * Reset all services to default state
-     */
-    resetToDefaults(): void {
-      this.services = JSON.parse(JSON.stringify(DEFAULT_SERVICES))
-      this.saveToLocalStorage()
-    },
-
-    /**
      * Save services state to localStorage
      */
     saveToLocalStorage(): void {
@@ -120,8 +111,6 @@ export const useServicesStore = defineStore('services', {
       const saved = StorageService.get<Service[]>(STORAGE_KEYS.SERVICES)
       if (saved && ServicesService.isValidServicesArray(saved)) {
         this.services = saved
-      } else {
-        this.resetToDefaults()
       }
     },
 
