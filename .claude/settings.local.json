@@ -23,5 +23,9 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "shadcn"
+  ],
+  "additionalDirectories": [
+    "~/code/calvin_cogitator",
+    "~/code/arduino",
   ]
 }
