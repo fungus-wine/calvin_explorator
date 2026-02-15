@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { SERVICES, type Service } from '@/constants/services'
 import { ServicesService } from '@/services/servicesService'
-import { StorageService } from '@/services/storageService'
 import { STORAGE_KEYS } from '@/constants/storage'
 
 interface ServicesState {
@@ -101,16 +100,27 @@ export const useServicesStore = defineStore('services', {
      * Save services state to localStorage
      */
     saveToLocalStorage(): void {
-      StorageService.set(STORAGE_KEYS.SERVICES, this.services)
+      try {
+        localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(this.services))
+      } catch (error) {
+        console.warn('Failed to save services state to localStorage', error)
+      }
     },
 
     /**
      * Load services state from localStorage
      */
     loadFromLocalStorage(): void {
-      const saved = StorageService.get<Service[]>(STORAGE_KEYS.SERVICES)
-      if (saved && ServicesService.isValidServicesArray(saved)) {
-        this.services = saved
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.SERVICES)
+        if (saved) {
+          const parsed = JSON.parse(saved) as Service[]
+          if (ServicesService.isValidServicesArray(parsed)) {
+            this.services = parsed
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load services state from localStorage', error)
       }
     },
 

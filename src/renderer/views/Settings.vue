@@ -9,8 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useThemeStore } from '@/stores/theme'
-import { AVAILABLE_THEMES, THEME_LABELS } from '@/constants/theme'
+import { useThemeStore } from 'theminator'
 
 export default defineComponent({
   name: 'Settings',
@@ -22,16 +21,8 @@ export default defineComponent({
     SelectTrigger,
     SelectValue
   },
-  data() {
-    return {
-      themes: AVAILABLE_THEMES.map(theme => ({
-        value: theme,
-        label: THEME_LABELS[theme]
-      }))
-    }
-  },
   computed: {
-    ...mapState(useThemeStore, ['darkMode', 'selectedTheme']),
+    ...mapState(useThemeStore, ['darkMode', 'selectedTheme', 'availableThemes']),
 
     // Two-way computed properties for v-model
     darkModeModel: {
@@ -79,7 +70,7 @@ export default defineComponent({
                   <SelectValue placeholder="Select a theme" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem v-for="theme in themes" :key="theme.value" :value="theme.value">
+                  <SelectItem v-for="theme in availableThemes" :key="theme.name" :value="theme.name">
                     {{ theme.label }}
                   </SelectItem>
                 </SelectContent>

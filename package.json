@@ -23,6 +23,7 @@
     "radix-vue": "^1.9.17",
     "reka-ui": "^2.8.0",
     "tailwind-merge": "^3.4.0",
+    "theminator": "file:../theminator",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0",
     "vue-sonner": "^2.0.9"

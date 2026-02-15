@@ -4,7 +4,6 @@ import { defineComponent } from 'vue'
 import Layout from './components/Layout.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import { Toaster } from '@/components/ui/sonner'
-import { useThemeStore } from './stores/theme'
 
 export default defineComponent({
   name: 'App',
@@ -12,10 +11,6 @@ export default defineComponent({
     Layout,
     ErrorBoundary,
     Toaster
-  },
-  mounted() {
-    const themeStore = useThemeStore()
-    themeStore.initialize()
   }
 })
 </script>

@@ -1,45 +1,30 @@
 /**
  * Theme Constants
- * Centralized theme configuration values
+ * Re-exported from theminator for backwards compatibility
  */
 
-export const AVAILABLE_THEMES = [
-  'default',
-  'red',
-  'rose',
-  'orange',
-  'green',
-  'blue',
-  'yellow',
-  'violet'
-] as const
+export {
+  BUILT_IN_THEMES as AVAILABLE_THEMES,
+  THEME_LABELS,
+  registerTheme
+} from 'theminator'
 
-export type ThemeName = typeof AVAILABLE_THEMES[number]
+export type { ThemeName } from 'theminator'
 
-export const THEME_LABELS: Record<ThemeName, string> = {
-  default: 'Default',
-  red: 'Red',
-  rose: 'Rose',
-  orange: 'Orange',
-  green: 'Green',
-  blue: 'Blue',
-  yellow: 'Yellow',
-  violet: 'Violet'
-}
-
-export const DEFAULT_THEME: ThemeName = 'default'
-export const DEFAULT_DARK_MODE = true
+export { DEFAULT_THEME, DEFAULT_DARK_MODE } from 'theminator'
 
 /**
  * Helper to validate theme name
  */
-export function isValidTheme(theme: string): theme is ThemeName {
-  return AVAILABLE_THEMES.includes(theme as ThemeName)
+export function isValidTheme(theme: string): boolean {
+  const { BUILT_IN_THEMES } = require('theminator')
+  return BUILT_IN_THEMES.includes(theme)
 }
 
 /**
  * Get theme label
  */
-export function getThemeLabel(theme: ThemeName): string {
-  return THEME_LABELS[theme]
+export function getThemeLabel(theme: string): string {
+  const { THEME_LABELS } = require('theminator')
+  return THEME_LABELS[theme] || theme
 }

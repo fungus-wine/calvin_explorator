@@ -1,8 +1,29 @@
-# Calvin Console - Project Instructions
+# Calvin Explorator - Project Instructions
 
-## Project Overview
+## System Overview
 
-Calvin Console is an Electron desktop application for monitoring and controlling a balancing robot, built with Vue 3, TypeScript, and shadcn-vue components. Features include:
+**Calvin Explorator** is the human monitoring and control interface for Calvin, a self-balancing robot. Built as an Electron desktop application with Vue 3 and TypeScript, it provides real-time telemetry visualization, command input, and system configuration.
+
+**Calvin's Three-System Architecture:**
+- **instinctus** - Low-level reflexes and motor control (Arduino) - `/Users/damoncali/code/arduino/calvin_instinctus/CLAUDE.md`
+- **cogitator** - High-level AI and planning (Jetson Orin Nano) - `/Users/damoncali/code/calvin_cogitator/CLAUDE.md`
+- **explorator** (THIS SYSTEM) - Human monitoring interface (Electron app)
+
+**Integration:**
+- Receives telemetry from cogitator via network (WebSocket/HTTP)
+- Sends user commands to cogitator via network
+- Displays real-time data: video stream, sensor data, battery status, motor feedback
+- Allows configuration: PID tuning, service management, system settings
+
+**Data Flow:**
+```
+Instinctus (sensors) → Cogitator (aggregation) → Explorator (visualization)
+Explorator (commands) → Cogitator (planning) → Instinctus (execution)
+```
+
+## Application Overview
+
+Calvin Explorator is an Electron desktop application built with Vue 3, TypeScript, and shadcn-vue components. Features include:
 - Video stream display with command interface for remote control
 - I2C bus health monitoring with EMI correlation diagnostics
 - Real-time FFT charts for IMU accelerometer data visualization
@@ -23,6 +44,7 @@ Calvin Console is an Electron desktop application for monitoring and controlling
 - **Vue Router** - Client-side routing with hash mode
 - **Vite** - Build tool and dev server
 - **Tailwind CSS 4.1** - Utility-first CSS framework with CSS-first configuration
+- **theminator** - OKLCH theme system with 9 color themes (local package at ~/code/theminator)
 - **shadcn-vue** - UI component library (CLI-installed)
 - **Unovis** - Chart library for data visualization
 
@@ -42,21 +64,24 @@ src/
 │   └── index.js             # Context bridge API
 └── renderer/                # Vue.js application
     ├── index.html           # HTML entry point
-    ├── main.ts              # Vue app initialization (TypeScript)
+    ├── main.ts              # Vue app initialization + theminator setup (TypeScript)
     ├── App.vue              # Root component
-    ├── style.css            # Global styles + Tailwind + theme system
+    ├── style.css            # Global styles + Tailwind (themes from theminator)
     ├── router/              # Vue Router configuration
     │   └── index.ts
     ├── constants/           # Shared constants and configuration
     │   ├── chart.ts         # Chart config + unified gradient defs
+    │   ├── theme.ts         # Re-exports from theminator
     │   └── navigation.ts    # Route definitions
+    ├── stores/              # Pinia stores
+    │   └── services.ts      # Services state management
     ├── views/               # Page components
     │   ├── Dashboard.vue    # Video stream + command input
     │   ├── Services.vue     # Service management with switches
     │   ├── Diagnostics.vue  # I2C monitoring + FFT charts for IMU data
     │   ├── Telemetry.vue    # Battery health + ToF distance sensors
     │   ├── PIDTuning.vue    # PID controller tuning interface
-    │   └── Settings.vue     # Theme and dark mode controls
+    │   └── Settings.vue     # Theme and dark mode controls (uses theminator)
     └── components/
         ├── Layout.vue       # Main layout with sticky header + sidebar
         └── ui/              # shadcn-vue components
@@ -72,6 +97,8 @@ src/
             ├── separator/
             └── chart/       # Unovis chart helpers
 ```
+
+**Note:** Theme system (stores/theme.ts, services/themeService.ts, services/storageService.ts) removed - now provided by theminator package.
 
 ## Vue Component Guidelines
 
@@ -116,38 +143,142 @@ export default defineComponent({
 
 ## Theming System
 
+### Using Theminator
+The app uses **theminator** - a simple OKLCH theming library for Vue 3 Options API apps.
+
+**Location:** `~/code/theminator` (local development package)
+
+**Installation:**
+```bash
+npm install ~/code/theminator
+```
+
+**Setup in main.ts:**
+```typescript
+import { useThemeStore } from 'theminator'
+import 'theminator/styles'
+
+// After creating Pinia
+useThemeStore().initialize()
+```
+
+### Migration from Local Theme System
+**Completed:** App migrated from local theme implementation to theminator library.
+
+**What was removed:**
+- `src/renderer/stores/theme.ts` - Replaced by theminator's Pinia store
+- `src/renderer/services/themeService.ts` - Replaced by theminator
+- `src/renderer/services/storageService.ts` - No longer needed (theminator handles storage)
+- ~500 lines of theme CSS from `style.css` - Now provided by theminator
+
+**What changed:**
+- `src/renderer/constants/theme.ts` - Now re-exports from theminator
+- `src/renderer/views/Settings.vue` - Uses theminator store and `availableThemes` getter
+- `src/renderer/stores/services.ts` - Uses localStorage directly (no StorageService dependency)
+
+**Benefits:**
+- Reduced code duplication
+- 9 themes instead of 8 (added Indigo)
+- 5 chart colors per theme instead of 2
+- Better error handling (localStorage failures, invalid themes)
+- Reusable across other projects
+
 ### Multi-Theme Support
-The app supports 8 color themes defined in `style.css`:
+Theminator provides 9 built-in color themes in rainbow order:
 - Default (neutral)
-- Red, Rose, Orange
-- Green, Blue
-- Yellow, Violet
+- Red, Orange, Yellow (warm)
+- Green, Blue, Indigo, Violet (cool)
+- Rose (pink accent)
 
 ### Theme Structure
-Each theme defines:
+Each theme defines CSS variables:
 - `--background`, `--foreground` - Base colors
 - `--primary`, `--primary-foreground` - Primary accent
 - `--secondary`, `--muted`, `--accent` - Supporting colors
 - `--border`, `--input`, `--ring` - UI element colors
 - `--card`, `--popover` - Surface colors
-- `--chart-1`, `--chart-2` - Chart color palette
+- `--chart-1` through `--chart-5` - Chart color palette (5 colors with varying brightness)
 
 Themes use OKLCH color space for consistent lightness perception.
 
 ### Dark Mode
-- Stored in localStorage
+- Stored in localStorage via theminator (`theminator:darkMode`)
 - Applied via `.dark` class on `<html>`
 - Each theme has light and dark variants
 - Configured in `src/renderer/views/Settings.vue`
 
+### Using Themes in Components
+```vue
+<script lang="ts">
+import { defineComponent } from 'vue'
+import { mapState, mapActions } from 'pinia'
+import { useThemeStore } from 'theminator'
+
+export default defineComponent({
+  computed: {
+    ...mapState(useThemeStore, ['darkMode', 'selectedTheme', 'availableThemes'])
+  },
+  methods: {
+    ...mapActions(useThemeStore, ['setDarkMode', 'setTheme', 'toggleDarkMode'])
+  }
+})
+</script>
+```
+
 ### Chart Theming
-Charts automatically adapt to active theme via `--chart-1` and `--chart-2` CSS variables.
+Charts automatically adapt to active theme via `--chart-1` through `--chart-5` CSS variables.
 
 **Unified Gradient System:**
 - All area charts use `CHART_GRADIENT_DEFS` from `@/constants/chart`
 - Provides `fillChart1` and `fillChart2` gradients
 - Automatically theme-aware (uses CSS variables)
 - Single definition shared across all charts
+
+**Chart Color Usage:**
+- `--chart-1` - Darkest/most saturated
+- `--chart-2` - Medium-dark
+- `--chart-3` - Medium (good default)
+- `--chart-4` - Medium-light
+- `--chart-5` - Lightest (good for backgrounds)
+
+### Theminator Features
+- ✅ Automatic localStorage persistence
+- ✅ Theme validation (falls back to 'default' if saved theme doesn't exist)
+- ✅ Error handling for private browsing mode
+- ✅ Simple Pinia store integration
+- ✅ Support for custom themes
+- ✅ Rainbow-ordered themes (ROYGBIV + rose)
+
+### Adding Custom Themes
+To add a custom theme:
+
+1. **Define CSS in `style.css`:**
+```css
+:root[data-theme="custom"] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.55 0.25 200);
+  /* ... all other CSS variables ... */
+  --chart-1: oklch(0.45 0.24 200);
+  --chart-2: oklch(0.55 0.25 200);
+  --chart-3: oklch(0.65 0.23 200);
+  --chart-4: oklch(0.75 0.20 200);
+  --chart-5: oklch(0.85 0.16 200);
+}
+
+:root[data-theme="custom"].dark {
+  /* Dark mode variant */
+}
+```
+
+2. **Register in `main.ts`:**
+```typescript
+import { registerTheme } from 'theminator'
+
+registerTheme('custom', 'My Custom Theme')
+```
+
+The theme now appears in the Settings dropdown!
 
 ## Charts (Unovis)
 
@@ -402,13 +533,56 @@ Components auto-install with dependencies and types.
 - Use theme variables for colors
 - Keep chart styling in scoped styles with `:deep()`
 
+## Integration with Other Systems
+
+### With Cogitator (Jetson)
+**Documentation:** `/Users/damoncali/code/calvin_cogitator/CLAUDE.md`
+
+**Interface:** Network communication (WebSocket/HTTP) - ❌ NOT IMPLEMENTED
+
+**Explorator Receives:**
+- Video stream from OAK-D camera
+- Telemetry data forwarded from instinctus:
+  - Balance status (tilt angle, velocity)
+  - Motor feedback (position, velocity, current)
+  - Battery health (voltage, current, power, temperature)
+  - ToF distance measurements
+  - I2C bus health metrics
+  - IMU FFT data for vibration analysis
+
+**Explorator Sends:**
+- User commands from Dashboard (move, stop, turn)
+- PID tuning parameters from PID Tuning page
+- Service enable/disable from Services page
+- Configuration changes from Settings
+- Emergency stop (redundant safety)
+
+**Current Status:**
+- UI fully implemented with dummy data generators
+- Real network integration pending cogitator implementation
+
+### With Instinctus (Arduino)
+**Documentation:** `/Users/damoncali/code/arduino/calvin_instinctus/CLAUDE.md`
+
+**Interface:** Indirect via Cogitator (no direct connection)
+
+**Data Flow:**
+```
+Instinctus M4 → M7 (EventQueue) → Cogitator (Serial) → Explorator (Network)
+Explorator → Cogitator → Instinctus M7 → M4 (EventQueue)
+```
+
+**Note:** Explorator does not communicate directly with instinctus. All telemetry and commands flow through cogitator as the communication hub.
+
 ## Notes
 
 - **No git commits** - User handles all git operations
 - **Production optimization** - Production builds are optimized and fast (~300-700ms load time)
 - **Dark mode first** - App defaults to dark mode, configurable in Settings
-- **Theme persistence** - Settings stored in localStorage
+- **Theme persistence** - Settings stored in localStorage via theminator (`theminator:darkMode`, `theminator:theme`)
 - **Type safety** - `strict: false` allows gradual TypeScript adoption
+- **Dummy data** - Currently uses data generators; real integration pending cogitator network interface
+- **Theminator** - Theme system extracted to reusable library at `~/code/theminator`
 
 ## Troubleshooting
 
