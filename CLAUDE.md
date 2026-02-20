@@ -2,7 +2,7 @@
 
 ## System Overview
 
-**Calvin Explorator** is the human monitoring and control interface for Calvin, a self-balancing robot. Built as an Electron desktop application with Vue 3 and TypeScript, it provides real-time telemetry visualization, command input, and system configuration.
+**Calvin Explorator** is the human monitoring and control interface for Calvin, a self-balancing robot. Built as an Electron desktop application with Vue, it provides real-time telemetry visualization, command input, and system configuration.
 
 **Calvin's Three-System Architecture:**
 - **instinctus** - Low-level reflexes and motor control (Arduino) - `/Users/damoncali/code/arduino/calvin_instinctus/CLAUDE.md`
@@ -10,7 +10,7 @@
 - **explorator** (THIS SYSTEM) - Human monitoring interface (Electron app)
 
 **Integration:**
-- Receives telemetry from cogitator via network (WebSocket/HTTP)
+- Receives telemetry from cogitator via network
 - Sends user commands to cogitator via network
 - Displays real-time data: video stream, sensor data, battery status, motor feedback
 - Allows configuration: PID tuning, service management, system settings
@@ -34,12 +34,19 @@ Calvin Explorator is an Electron desktop application built with Vue 3, TypeScrip
 - Multi-theme support with light/dark modes
 - Sticky global header with battery status indicator
 
+## General Guidance
+
+- Don't improvise. Use conventional code when possible. Always ask for confirmation before writing code that breaks standard patterns
+- Don't write code that fights against external libraries. Instead, suggest more conventional approahes.
+- Check your work
+- Favor maintainability, modularity, and simplicity over cleverness and complexity
+
 ## Tech Stack
 
 ### Core Technologies
 - **Electron** - Desktop app framework
 - **electron-vite** - Build tooling for Electron + Vite
-- **Vue 3** - UI framework using **Options API** except for 3rd party add ons such as shadcn-vue components.
+- **Vue 3** - UI framework using **Options API** except for 3rd party add ons such as shadcn-vue components
 - **TypeScript** - Type-safe JavaScript
 - **Vue Router** - Client-side routing with hash mode
 - **Vite** - Build tool and dev server
@@ -54,85 +61,9 @@ Calvin Explorator is an Electron desktop application built with Vue 3, TypeScrip
 - **Hash mode routing** - Router uses `createWebHashHistory()` for Electron compatibility
 - **shadcn-vue CLI** - Install components via `npx shadcn-vue@latest add <component>`
 
-## Project Structure
-
-```
-src/
-├── main/                    # Electron main process (Node.js)
-│   └── index.js             # Main process entry point
-├── preload/                 # Electron preload scripts
-│   └── index.js             # Context bridge API
-└── renderer/                # Vue.js application
-    ├── index.html           # HTML entry point
-    ├── main.ts              # Vue app initialization + theminator setup (TypeScript)
-    ├── App.vue              # Root component
-    ├── style.css            # Global styles + Tailwind (themes from theminator)
-    ├── router/              # Vue Router configuration
-    │   └── index.ts
-    ├── constants/           # Shared constants and configuration
-    │   ├── chart.ts         # Chart config + unified gradient defs
-    │   ├── theme.ts         # Re-exports from theminator
-    │   └── navigation.ts    # Route definitions
-    ├── stores/              # Pinia stores
-    │   └── services.ts      # Services state management
-    ├── views/               # Page components
-    │   ├── Dashboard.vue    # Video stream + command input
-    │   ├── Services.vue     # Service management with switches
-    │   ├── Diagnostics.vue  # I2C monitoring + FFT charts for IMU data
-    │   ├── Telemetry.vue    # Battery health + ToF distance sensors
-    │   ├── PIDTuning.vue    # PID controller tuning interface
-    │   └── Settings.vue     # Theme and dark mode controls (uses theminator)
-    └── components/
-        ├── Layout.vue       # Main layout with sticky header + sidebar
-        └── ui/              # shadcn-vue components
-            ├── card/
-            ├── sidebar/     # FIXED: Tailwind CSS variable syntax + mobile trigger
-            ├── badge/       # Status indicators
-            ├── switch/
-            ├── checkbox/
-            ├── label/
-            ├── select/
-            ├── button/
-            ├── textarea/
-            ├── separator/
-            └── chart/       # Unovis chart helpers
-```
-
-**Note:** Theme system (stores/theme.ts, services/themeService.ts, services/storageService.ts) removed - now provided by theminator package.
-
 ## Vue Component Guidelines
 
 **Always use Options API with `<script lang="ts">`**
-
-**Standard pattern:**
-```vue
-<script lang="ts">
-import { defineComponent } from 'vue'
-
-interface DataPoint {
-  x: number
-  y: number
-}
-
-export default defineComponent({
-  data() {
-    return {
-      count: 0,
-      items: [] as DataPoint[]
-    }
-  },
-  methods: {
-    increment() {
-      this.count++
-    }
-  }
-})
-</script>
-
-<template>
-  <div>{{ count }}</div>
-</template>
-```
 
 **Key Points:**
 - Use `defineComponent()` for proper TypeScript inference
@@ -140,90 +71,6 @@ export default defineComponent({
 - Type arrays and objects in `data()`: `items: [] as Type[]`
 - Avoid `any` types - use specific interfaces
 - Use constants for magic numbers
-
-## Theming System
-
-### Using Theminator
-The app uses **theminator** - a simple OKLCH theming library for Vue 3 Options API apps.
-
-**Location:** `~/code/theminator` (local development package)
-
-**Installation:**
-```bash
-npm install ~/code/theminator
-```
-
-**Setup in main.ts:**
-```typescript
-import { useThemeStore } from 'theminator'
-import 'theminator/styles'
-
-// After creating Pinia
-useThemeStore().initialize()
-```
-
-### Migration from Local Theme System
-**Completed:** App migrated from local theme implementation to theminator library.
-
-**What was removed:**
-- `src/renderer/stores/theme.ts` - Replaced by theminator's Pinia store
-- `src/renderer/services/themeService.ts` - Replaced by theminator
-- `src/renderer/services/storageService.ts` - No longer needed (theminator handles storage)
-- ~500 lines of theme CSS from `style.css` - Now provided by theminator
-
-**What changed:**
-- `src/renderer/constants/theme.ts` - Now re-exports from theminator
-- `src/renderer/views/Settings.vue` - Uses theminator store and `availableThemes` getter
-- `src/renderer/stores/services.ts` - Uses localStorage directly (no StorageService dependency)
-
-**Benefits:**
-- Reduced code duplication
-- 9 themes instead of 8 (added Indigo)
-- 5 chart colors per theme instead of 2
-- Better error handling (localStorage failures, invalid themes)
-- Reusable across other projects
-
-### Multi-Theme Support
-Theminator provides 9 built-in color themes in rainbow order:
-- Default (neutral)
-- Red, Orange, Yellow (warm)
-- Green, Blue, Indigo, Violet (cool)
-- Rose (pink accent)
-
-### Theme Structure
-Each theme defines CSS variables:
-- `--background`, `--foreground` - Base colors
-- `--primary`, `--primary-foreground` - Primary accent
-- `--secondary`, `--muted`, `--accent` - Supporting colors
-- `--border`, `--input`, `--ring` - UI element colors
-- `--card`, `--popover` - Surface colors
-- `--chart-1` through `--chart-5` - Chart color palette (5 colors with varying brightness)
-
-Themes use OKLCH color space for consistent lightness perception.
-
-### Dark Mode
-- Stored in localStorage via theminator (`theminator:darkMode`)
-- Applied via `.dark` class on `<html>`
-- Each theme has light and dark variants
-- Configured in `src/renderer/views/Settings.vue`
-
-### Using Themes in Components
-```vue
-<script lang="ts">
-import { defineComponent } from 'vue'
-import { mapState, mapActions } from 'pinia'
-import { useThemeStore } from 'theminator'
-
-export default defineComponent({
-  computed: {
-    ...mapState(useThemeStore, ['darkMode', 'selectedTheme', 'availableThemes'])
-  },
-  methods: {
-    ...mapActions(useThemeStore, ['setDarkMode', 'setTheme', 'toggleDarkMode'])
-  }
-})
-</script>
-```
 
 ### Chart Theming
 Charts automatically adapt to active theme via `--chart-1` through `--chart-5` CSS variables.
@@ -240,45 +87,6 @@ Charts automatically adapt to active theme via `--chart-1` through `--chart-5` C
 - `--chart-3` - Medium (good default)
 - `--chart-4` - Medium-light
 - `--chart-5` - Lightest (good for backgrounds)
-
-### Theminator Features
-- ✅ Automatic localStorage persistence
-- ✅ Theme validation (falls back to 'default' if saved theme doesn't exist)
-- ✅ Error handling for private browsing mode
-- ✅ Simple Pinia store integration
-- ✅ Support for custom themes
-- ✅ Rainbow-ordered themes (ROYGBIV + rose)
-
-### Adding Custom Themes
-To add a custom theme:
-
-1. **Define CSS in `style.css`:**
-```css
-:root[data-theme="custom"] {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.55 0.25 200);
-  /* ... all other CSS variables ... */
-  --chart-1: oklch(0.45 0.24 200);
-  --chart-2: oklch(0.55 0.25 200);
-  --chart-3: oklch(0.65 0.23 200);
-  --chart-4: oklch(0.75 0.20 200);
-  --chart-5: oklch(0.85 0.16 200);
-}
-
-:root[data-theme="custom"].dark {
-  /* Dark mode variant */
-}
-```
-
-2. **Register in `main.ts`:**
-```typescript
-import { registerTheme } from 'theminator'
-
-registerTheme('custom', 'My Custom Theme')
-```
-
-The theme now appears in the Settings dropdown!
 
 ## Charts (Unovis)
 
@@ -311,7 +119,7 @@ Location: `src/renderer/views/Services.vue`
 - Switch hidden with `sr-only` - entire card is clickable Label
 
 **Key Points:**
-- Use `Switch` component (not Checkbox) for on/off states
+- Use `Switch` component (not Checkbox) for on/off states for stubs. When actually implemented, use whatever componet is cleanest
 - Hide switch visually but keep accessible: `class="sr-only"`
 - Style parent Label with `has-data-[state=checked]:bg-primary/5` and `has-data-[state=checked]:border-primary`
 - Dark mode uses `dark:has-data-[state=checked]:bg-primary/10` for stronger contrast
@@ -323,13 +131,10 @@ Location: `src/renderer/views/Dashboard.vue`
 **Features:**
 - 4:3 aspect ratio video placeholder (`aspect-[4/3]`)
 - Multi-line command input (Textarea) with embedded submit button
-- Button positioned absolutely inside textarea (`absolute bottom-3 right-3`)
 - Keyboard: Enter sends, Shift+Enter for new line
-- Centered with `max-w-5xl mx-auto` constraint
 
 **Key Points:**
 - Remove `disabled:opacity-50` from buttons to keep theme colors bright when disabled
-- Use `:stroke-width="3"` on icons for bolder appearance
 - Always call `preventDefault()` on Enter key to avoid unwanted newlines before submit
 
 ## PID Tuning Page
@@ -345,8 +150,8 @@ Location: `src/renderer/views/PIDTuning.vue`
 **Key Points:**
 - Readonly inputs styled with `bg-muted text-center font-mono focus:outline-none`
 - Percentage adjustments: `value * (1 ± percentage)`, rounded to 3 decimals
-- Flash animation: Reactive state + setTimeout(200ms) + `transition-colors` class
-- Mode toggle buttons use `:variant="mode === 'active' ? 'default' : 'outline'"`
+- Flash animation: Reactive state + setTimeout(200ms) + `transition-colors` class. When actual connectivity is complete, flash on confirmation from cogitator, not on click
+- Mode toggle buttons use `:variant="mode === 'active' ? 'default' : 'outline'"
 
 ## Diagnostics Page
 
@@ -366,7 +171,6 @@ Location: `src/renderer/views/Diagnostics.vue`
   - Gradient area charts showing vibration patterns
 
 **Key Points:**
-- I2C cards appear above FFT charts
 - Error rate shows I2C transaction failures over time
 - Motor current charts show left/right motors with different colors (`--chart-1`, `--chart-2`)
 - EMI correlation visible when motor current spikes coincide with error rate increases
@@ -382,9 +186,10 @@ Location: `src/renderer/views/Telemetry.vue`
   - Voltage, current, power, temperature metrics
   - Current draw timeline chart
   - Status badge (Good/Warning/Critical based on voltage thresholds)
-  - Temperature warning indicator (>35°C)
-  - Battery icon displayed in global header (not on page)
+  - Temperature warning indicator (>35°C) in layout header
+  - Battery icon displayed in layout header (not on page)
 - **ToF Distance Sensors** - VL53L4CX obstacle detection (Adafruit 5425)
+  - Front and Rear object collision warning indicators in layout header when ToF < 20cm
   - Front and rear sensors in side-by-side cards
   - Distance measurement in millimeters
   - Range status badge (Valid/Out of Range/Error)
@@ -403,7 +208,7 @@ Location: `src/renderer/views/Telemetry.vue`
 Location: `src/renderer/components/Layout.vue`
 
 **Features:**
-- Sticky global header with battery status indicator
+- Sticky global header with status indicators
 - Collapsible sidebar navigation
 - Main content area with router view
 - STOP button (destructive variant) in top-right
@@ -411,20 +216,13 @@ Location: `src/renderer/components/Layout.vue`
 **Sticky Header:**
 - Classes: `sticky top-0 z-10 bg-background`
 - Stays visible when scrolling
-- Contains: SidebarTrigger, Battery Icon, STOP button
+- Contains: SidebarTrigger, Battery Icon, Tof Icons,  STOP button
 
 **Battery Icon:**
-- Visual battery shape with fill level
-- Color-coded: Green (>50%), Yellow (20-50%), Red (≤20%)
-- Percentage display
-- Compact size for header: 12px × 6px
-- Data generated in Layout component (dummy data for now)
+- Visual, color coded battery shape with fill level and percentage
 
-**Key Points:**
-- Battery level state managed in Layout component
-- Header background uses theme variable to match page background
-- `z-10` ensures header stays above scrolling content
-- Battery icon width calculated: `Math.max(2, (batteryLevel / 100) * 43) + 'px'`
+**ToF Icons (Front and Rear):**
+- Visual, color coded (grey for ok, red for warning)
 
 ## shadcn-vue Components
 
@@ -495,8 +293,6 @@ Components auto-install with dependencies and types.
 
 ### Keyboard Shortcuts in Inputs
 - Enter = send/submit, Shift+Enter = new line
-- Always `event.preventDefault()` on plain Enter to avoid unwanted newlines
-- Let Shift+Enter use default behavior (creates newline)
 
 ## File Editing Rules
 
@@ -525,7 +321,7 @@ Components auto-install with dependencies and types.
 - Use theme CSS variables for colors (always `var(--variable)` syntax)
 - Use scoped styles for component-specific styling
 - Avoid inline styles except for dynamic values
-- **Button brightness**: Remove `disabled:opacity-50` to keep theme colors bright when button is disabled - use `disabled:pointer-events-none` instead to prevent clicks
+
 
 ### Charts
 - Extract chart configuration to constants
@@ -533,25 +329,27 @@ Components auto-install with dependencies and types.
 - Use theme variables for colors
 - Keep chart styling in scoped styles with `:deep()`
 
-## Integration with Other Systems
+## Integration with Other Systems - Mostly undefined, use stubs only for now
 
 ### With Cogitator (Jetson)
 **Documentation:** `/Users/damoncali/code/calvin_cogitator/CLAUDE.md`
 
-**Interface:** Network communication (WebSocket/HTTP) - ❌ NOT IMPLEMENTED
+**Interface:**
+- not defined yet
 
 **Explorator Receives:**
-- Video stream from OAK-D camera
-- Telemetry data forwarded from instinctus:
-  - Balance status (tilt angle, velocity)
-  - Motor feedback (position, velocity, current)
-  - Battery health (voltage, current, power, temperature)
-  - ToF distance measurements
-  - I2C bus health metrics
-  - IMU FFT data for vibration analysis
+- Telemetry data forwarded from instinctus (partially defined):
+  - Video stream from OAK-D camera
+  - battery data
+  - service status confirmations
+  - pid status confirmations
+  - tof data stream
+  - audo data stream (possibly with video - undedfined)
+  - acelerometer data streams
+  - oak-d supplemental data streams
 
 **Explorator Sends:**
-- User commands from Dashboard (move, stop, turn)
+- User commands from Dashboard - commands will be interpreted by cogitator's local LLM
 - PID tuning parameters from PID Tuning page
 - Service enable/disable from Services page
 - Configuration changes from Settings
@@ -577,12 +375,10 @@ Explorator → Cogitator → Instinctus M7 → M4 (EventQueue)
 ## Notes
 
 - **No git commits** - User handles all git operations
-- **Production optimization** - Production builds are optimized and fast (~300-700ms load time)
 - **Dark mode first** - App defaults to dark mode, configurable in Settings
 - **Theme persistence** - Settings stored in localStorage via theminator (`theminator:darkMode`, `theminator:theme`)
 - **Type safety** - `strict: false` allows gradual TypeScript adoption
 - **Dummy data** - Currently uses data generators; real integration pending cogitator network interface
-- **Theminator** - Theme system extracted to reusable library at `~/code/theminator`
 
 ## Troubleshooting
 
