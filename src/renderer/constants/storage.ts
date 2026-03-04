@@ -20,8 +20,11 @@ export const STORAGE_KEYS = {
   // Telemetry settings (future use)
   TELEMETRY_CONFIG: 'telemetryConfig',
 
-  // Last connection info (future use)
-  LAST_CONNECTION: 'lastConnection'
+  // Last connection info
+  LAST_CONNECTION: 'lastConnection',
+
+  // Cogitator connection settings
+  COGITATOR_CONNECTION: 'cogitatorConnection'
 } as const
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS]

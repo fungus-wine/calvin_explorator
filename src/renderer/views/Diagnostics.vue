@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { VisXYContainer, VisArea, VisLine, VisAxis } from '@unovis/vue'
 import { CHART_CONFIG, CHART_GRADIENT_DEFS, FFT_CONFIG } from '@/constants/chart'
+import { useTelemetryStore } from '@/stores/telemetry'
 
 // Type definition for FFT data points
 interface FFTDataPoint {
@@ -12,25 +13,12 @@ interface FFTDataPoint {
   magnitude: number
 }
 
-// Type definitions for I2C bus monitoring
+// Type for I2C timeline chart accessors
 interface I2CTimelinePoint {
   timestamp: number
-  errorRate: number
-  leftMotorCurrent: number
-  rightMotorCurrent: number
-}
-
-interface I2CBusData {
-  busId: number
-  label: string
-  status: 'healthy' | 'warning' | 'error'
-  totalTransactions: number
-  totalErrors: number
-  errorRate: number
-  currentErrorRate: number
-  lastError: 'none' | 'nack' | 'timeout' | 'bus_error'
-  motorCurrent: number
-  timeline: I2CTimelinePoint[]
+  nacks: number
+  timeouts: number
+  resets: number
 }
 
 export default defineComponent({
@@ -59,18 +47,48 @@ export default defineComponent({
       svgDefs: CHART_GRADIENT_DEFS,
       balancerData: [] as FFTDataPoint[],
       oakdData: [] as FFTDataPoint[],
-      i2cBus0: {} as I2CBusData,
-      i2cBus1: {} as I2CBusData
+      telemetryStore: useTelemetryStore()
+    }
+  },
+  computed: {
+    i2cHealth() {
+      return this.telemetryStore.i2cHealth
+    },
+    hasI2CData() {
+      return this.i2cHealth.status !== 'no_data'
+    },
+    i2cTickValues(): number[] {
+      return this.timelineTickValues(this.i2cHealth.timeline)
     }
   },
   created() {
-    // Initialize chart data after component is created
+    // Initialize FFT chart data (dummy — cogitator sends raw IMU, not FFT)
     this.balancerData = this.generateBalancerFFT()
     this.oakdData = this.generateOakDFFT()
-    this.i2cBus0 = this.generateI2CData(0)
-    this.i2cBus1 = this.generateI2CData(1)
   },
   methods: {
+    timelineTickValues(timeline: { timestamp: number }[]): number[] {
+      const len = timeline.length
+      if (len < 2) return []
+      const NUM_TICKS = 6
+      const last = len - 1
+      const step = last / (NUM_TICKS - 1)
+      const values: number[] = []
+      for (let i = 0; i < NUM_TICKS - 1; i++) {
+        values.push(Math.round(i * step))
+      }
+      values.push(last)
+      return values
+    },
+    i2cXTickFormat(index: number): string {
+      const timeline = this.i2cHealth.timeline
+      if (timeline.length === 0) return ''
+      const latest = timeline[timeline.length - 1].timestamp
+      const point = timeline[Math.round(index)]
+      if (!point) return ''
+      const secondsAgo = Math.round((point.timestamp - latest) / 1000)
+      return `${secondsAgo}`
+    },
     // Generate realistic FFT data (frequency spectrum)
     generateBalancerFFT(): FFTDataPoint[] {
       const data: FFTDataPoint[] = []
@@ -123,110 +141,6 @@ export default defineComponent({
       }
 
       return data
-    },
-    // Generate realistic I2C bus monitoring data
-    generateI2CData(busId: number): I2CBusData {
-      const TIMELINE_POINTS = 60 // 60 seconds
-      const timeline: I2CTimelinePoint[] = []
-
-      // Bus 0: Healthy scenario with low errors
-      // Bus 1: Warning scenario with moderate errors and EMI correlation
-      const isHealthy = busId === 0
-
-      let totalTransactions = 0
-      let totalErrors = 0
-
-      // Generate timeline data (60 seconds, most recent is at index 59)
-      for (let i = 0; i < TIMELINE_POINTS; i++) {
-        const timestamp = i
-        let errorRate = 0
-        let leftMotorCurrent = 0
-        let rightMotorCurrent = 0
-
-        if (isHealthy) {
-          // Bus 0: Low, stable error rate with occasional tiny spikes
-          errorRate = 0.001 + Math.random() * 0.002 // ~0.1-0.3%
-          if (Math.random() < 0.1) {
-            errorRate += Math.random() * 0.003 // Occasional small spike
-          }
-          // Low motor current, stable, slightly different for each motor
-          leftMotorCurrent = 0.3 + Math.random() * 0.2 // 0.3-0.5A
-          rightMotorCurrent = 0.3 + Math.random() * 0.2 // 0.3-0.5A
-        } else {
-          // Bus 1: Higher baseline with spikes correlated to motor current
-          errorRate = 0.003 + Math.random() * 0.002 // ~0.3-0.5% baseline
-
-          // Motor currents vary - higher during certain periods
-          leftMotorCurrent = 1.5 + Math.random() * 0.5 // Baseline 1.5-2.0A
-          rightMotorCurrent = 1.4 + Math.random() * 0.5 // Baseline 1.4-1.9A
-
-          // Add spikes at certain times (simulating high motor current periods)
-          if (i > 20 && i < 30) {
-            leftMotorCurrent = 2.5 + Math.random() * 0.5 // High current 2.5-3.0A
-            rightMotorCurrent = 2.3 + Math.random() * 0.4 // Slightly lower 2.3-2.7A
-            errorRate += 0.005 + Math.random() * 0.003 // Spike during high current
-          }
-          if (i > 45 && i < 52) {
-            leftMotorCurrent = 2.7 + Math.random() * 0.5 // Very high current 2.7-3.2A
-            rightMotorCurrent = 2.8 + Math.random() * 0.4 // Very high current 2.8-3.2A
-            errorRate += 0.007 + Math.random() * 0.004 // Larger spike
-          }
-        }
-
-        timeline.push({
-          timestamp,
-          errorRate,
-          leftMotorCurrent: Math.round(leftMotorCurrent * 10) / 10, // Round to 1 decimal
-          rightMotorCurrent: Math.round(rightMotorCurrent * 10) / 10 // Round to 1 decimal
-        })
-
-        // Accumulate totals (assuming ~100 transactions per second)
-        const transactionsThisSecond = 95 + Math.floor(Math.random() * 10)
-        const errorsThisSecond = Math.floor(transactionsThisSecond * errorRate)
-        totalTransactions += transactionsThisSecond
-        totalErrors += errorsThisSecond
-      }
-
-      // Calculate overall error rate
-      const errorRate = totalTransactions > 0 ? (totalErrors / totalTransactions) * 100 : 0
-
-      // Current error rate (last data point)
-      const currentErrorRate = timeline[timeline.length - 1].errorRate * 100
-
-      // Determine status based on error rate
-      let status: 'healthy' | 'warning' | 'error'
-      if (errorRate < 1) {
-        status = 'healthy'
-      } else if (errorRate < 5) {
-        status = 'warning'
-      } else {
-        status = 'error'
-      }
-
-      // Motor current - use average of left and right from most recent timeline point
-      const lastPoint = timeline[timeline.length - 1]
-      const motorCurrent = Math.round((lastPoint.leftMotorCurrent + lastPoint.rightMotorCurrent) / 2 * 10) / 10
-
-      // Last error type
-      let lastError: 'none' | 'nack' | 'timeout' | 'bus_error'
-      if (isHealthy) {
-        lastError = 'none'
-      } else {
-        lastError = 'bus_error' // Typical EMI-induced error
-      }
-
-      return {
-        busId,
-        label: busId === 0 ? 'Sensors' : 'Motor Controllers',
-        status,
-        totalTransactions,
-        totalErrors,
-        errorRate: Math.round(errorRate * 1000) / 1000, // Round to 3 decimals
-        currentErrorRate: Math.round(currentErrorRate * 1000) / 1000,
-        lastError,
-        motorCurrent: Math.round(motorCurrent * 10) / 10, // Round to 1 decimal
-        timeline
-      }
     }
   }
 })
@@ -236,293 +150,99 @@ export default defineComponent({
   <div>
     <h2 class="text-3xl font-bold mb-6">Diagnostics</h2>
 
-    <!-- I2C Bus Monitoring -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <!-- I2C Bus 0 Card -->
+    <!-- I2C Bus Health Monitoring -->
+    <div class="mb-6">
       <ErrorBoundary>
         <Card>
           <CardHeader>
-            <CardTitle>I2C Bus {{ i2cBus0.busId }}</CardTitle>
-            <CardDescription>{{ i2cBus0.label }}</CardDescription>
+            <CardTitle>I2C Bus Health</CardTitle>
+            <CardDescription>Aggregate health from instinctus via cogitator</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
-            <!-- Error Rate Chart -->
-            <div>
-              <div class="text-sm font-medium mb-2">Error Rate</div>
-              <VisXYContainer
-                :data="i2cBus0.timeline"
-                :height="I2C_CHART_HEIGHT"
-                :svg-defs="svgDefs"
-                class="chart-container"
-              >
-                <VisArea
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.errorRate * 100"
-                  color="url(#fillChart1)"
-                  :opacity="AREA_OPACITY"
-                />
-                <VisLine
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.errorRate * 100"
-                  color="var(--chart-1)"
-                  :line-width="LINE_WIDTH"
-                />
-                <VisAxis
-                  type="x"
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :tick-line="false"
-                  :domain-line="false"
-                  :grid-line="false"
-                  :num-ticks="6"
-                />
-                <VisAxis
-                  type="y"
-                  label="Error Rate (%)"
-                  :num-ticks="5"
-                  :tick-line="false"
-                  :domain-line="false"
-                />
-              </VisXYContainer>
-            </div>
-
-            <!-- Motor Current Chart -->
-            <div>
-              <div class="text-sm font-medium mb-2">Motor Current</div>
-              <VisXYContainer
-                :data="i2cBus0.timeline"
-                :height="I2C_CHART_HEIGHT"
-                :svg-defs="svgDefs"
-                class="chart-container"
-              >
-                <VisArea
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.leftMotorCurrent"
-                  color="url(#fillChart1)"
-                  :opacity="AREA_OPACITY"
-                />
-                <VisArea
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.rightMotorCurrent"
-                  color="url(#fillChart2)"
-                  :opacity="AREA_OPACITY"
-                />
-                <VisLine
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.leftMotorCurrent"
-                  color="var(--chart-1)"
-                  :line-width="LINE_WIDTH"
-                />
-                <VisLine
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.rightMotorCurrent"
-                  color="var(--chart-2)"
-                  :line-width="LINE_WIDTH"
-                />
-                <VisAxis
-                  type="x"
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  label="Time (seconds ago)"
-                  :tick-line="false"
-                  :domain-line="false"
-                  :grid-line="false"
-                  :num-ticks="6"
-                />
-                <VisAxis
-                  type="y"
-                  label="Current (A)"
-                  :num-ticks="5"
-                  :tick-line="false"
-                  :domain-line="false"
-                />
-              </VisXYContainer>
-            </div>
-
             <!-- Status Badge -->
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium">Status:</span>
               <Badge
-                :variant="i2cBus0.status === 'healthy' ? 'default' : i2cBus0.status === 'warning' ? 'secondary' : 'destructive'"
+                v-if="hasI2CData"
+                :variant="i2cHealth.status === 'healthy' ? 'default' : i2cHealth.status === 'warning' ? 'secondary' : 'destructive'"
                 class="capitalize"
               >
-                <span v-if="i2cBus0.status === 'healthy'" class="mr-1">✓</span>
-                <span v-if="i2cBus0.status === 'warning'" class="mr-1">⚠</span>
-                <span v-if="i2cBus0.status === 'error'" class="mr-1">✗</span>
-                {{ i2cBus0.status }}
+                <span v-if="i2cHealth.status === 'healthy'" class="mr-1">✓</span>
+                <span v-if="i2cHealth.status === 'warning'" class="mr-1">⚠</span>
+                <span v-if="i2cHealth.status === 'error'" class="mr-1">✗</span>
+                {{ i2cHealth.status }}
               </Badge>
+              <Badge v-else variant="secondary">No Data</Badge>
             </div>
 
             <!-- Metrics Grid -->
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-3 gap-4 text-sm">
               <div>
-                <div class="text-muted-foreground">Total Transactions</div>
-                <div class="font-mono font-semibold">{{ i2cBus0.totalTransactions.toLocaleString() }}</div>
+                <div class="text-muted-foreground">NACKs</div>
+                <div class="font-mono font-semibold text-2xl">
+                  <template v-if="hasI2CData">{{ i2cHealth.nacks }}</template>
+                  <template v-else>--</template>
+                </div>
               </div>
               <div>
-                <div class="text-muted-foreground">Total Errors</div>
-                <div class="font-mono font-semibold">{{ i2cBus0.totalErrors.toLocaleString() }}</div>
+                <div class="text-muted-foreground">Timeouts</div>
+                <div class="font-mono font-semibold text-2xl">
+                  <template v-if="hasI2CData">{{ i2cHealth.timeouts }}</template>
+                  <template v-else>--</template>
+                </div>
               </div>
               <div>
-                <div class="text-muted-foreground">Error Rate</div>
-                <div class="font-mono font-semibold">{{ i2cBus0.errorRate }}%</div>
-              </div>
-              <div>
-                <div class="text-muted-foreground">Current</div>
-                <div class="font-mono font-semibold">{{ i2cBus0.currentErrorRate }}%</div>
+                <div class="text-muted-foreground">Resets</div>
+                <div class="font-mono font-semibold text-2xl">
+                  <template v-if="hasI2CData">{{ i2cHealth.resets }}</template>
+                  <template v-else>--</template>
+                </div>
               </div>
             </div>
 
-            <!-- Diagnostic Info -->
-            <div class="space-y-1 text-sm text-muted-foreground">
-              <div>Last Error: <span class="font-mono">{{ i2cBus0.lastError }}</span></div>
-              <div class="flex items-center gap-1">
-                Motor Current: <span class="font-mono">{{ i2cBus0.motorCurrent }}A</span>
-                <span v-if="i2cBus0.motorCurrent > 2.5" class="text-yellow-600 dark:text-yellow-400">⚠</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </ErrorBoundary>
-
-      <!-- I2C Bus 1 Card -->
-      <ErrorBoundary>
-        <Card>
-          <CardHeader>
-            <CardTitle>I2C Bus {{ i2cBus1.busId }}</CardTitle>
-            <CardDescription>{{ i2cBus1.label }}</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <!-- Error Rate Chart -->
-            <div>
-              <div class="text-sm font-medium mb-2">Error Rate</div>
+            <!-- Error Timeline Chart -->
+            <div v-if="i2cHealth.timeline.length > 1">
+              <div class="text-sm font-medium mb-2">Error Timeline (NACKs + Timeouts)</div>
               <VisXYContainer
-                :data="i2cBus1.timeline"
+                :data="i2cHealth.timeline"
                 :height="I2C_CHART_HEIGHT"
+                :duration="0"
                 :svg-defs="svgDefs"
                 class="chart-container"
               >
                 <VisArea
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.errorRate * 100"
+                  :x="(_d: I2CTimelinePoint, i: number) => i"
+                  :y="(d: I2CTimelinePoint) => d.nacks + d.timeouts"
                   color="url(#fillChart1)"
                   :opacity="AREA_OPACITY"
                 />
                 <VisLine
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.errorRate * 100"
+                  :x="(_d: I2CTimelinePoint, i: number) => i"
+                  :y="(d: I2CTimelinePoint) => d.nacks + d.timeouts"
                   color="var(--chart-1)"
                   :line-width="LINE_WIDTH"
                 />
                 <VisAxis
                   type="x"
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
+                  :x="(_d: I2CTimelinePoint, i: number) => i"
+                  label="Seconds Ago"
                   :tick-line="false"
                   :domain-line="false"
                   :grid-line="false"
-                  :num-ticks="6"
+                  :tick-values="i2cTickValues"
+                  :tick-format="i2cXTickFormat"
                 />
                 <VisAxis
                   type="y"
-                  label="Error Rate (%)"
+                  label="Errors"
                   :num-ticks="5"
                   :tick-line="false"
                   :domain-line="false"
                 />
               </VisXYContainer>
             </div>
-
-            <!-- Motor Current Chart -->
-            <div>
-              <div class="text-sm font-medium mb-2">Motor Current</div>
-              <VisXYContainer
-                :data="i2cBus1.timeline"
-                :height="I2C_CHART_HEIGHT"
-                :svg-defs="svgDefs"
-                class="chart-container"
-              >
-                <VisArea
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.leftMotorCurrent"
-                  color="url(#fillChart1)"
-                  :opacity="AREA_OPACITY"
-                />
-                <VisArea
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.rightMotorCurrent"
-                  color="url(#fillChart2)"
-                  :opacity="AREA_OPACITY"
-                />
-                <VisLine
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.leftMotorCurrent"
-                  color="var(--chart-1)"
-                  :line-width="LINE_WIDTH"
-                />
-                <VisLine
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  :y="(d: I2CTimelinePoint) => d.rightMotorCurrent"
-                  color="var(--chart-2)"
-                  :line-width="LINE_WIDTH"
-                />
-                <VisAxis
-                  type="x"
-                  :x="(d: I2CTimelinePoint) => d.timestamp"
-                  label="Time (seconds ago)"
-                  :tick-line="false"
-                  :domain-line="false"
-                  :grid-line="false"
-                  :num-ticks="6"
-                />
-                <VisAxis
-                  type="y"
-                  label="Current (A)"
-                  :num-ticks="5"
-                  :tick-line="false"
-                  :domain-line="false"
-                />
-              </VisXYContainer>
-            </div>
-
-            <!-- Status Badge -->
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium">Status:</span>
-              <Badge
-                :variant="i2cBus1.status === 'healthy' ? 'default' : i2cBus1.status === 'warning' ? 'secondary' : 'destructive'"
-                class="capitalize"
-              >
-                <span v-if="i2cBus1.status === 'healthy'" class="mr-1">✓</span>
-                <span v-if="i2cBus1.status === 'warning'" class="mr-1">⚠</span>
-                <span v-if="i2cBus1.status === 'error'" class="mr-1">✗</span>
-                {{ i2cBus1.status }}
-              </Badge>
-            </div>
-
-            <!-- Metrics Grid -->
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <div class="text-muted-foreground">Total Transactions</div>
-                <div class="font-mono font-semibold">{{ i2cBus1.totalTransactions.toLocaleString() }}</div>
-              </div>
-              <div>
-                <div class="text-muted-foreground">Total Errors</div>
-                <div class="font-mono font-semibold">{{ i2cBus1.totalErrors.toLocaleString() }}</div>
-              </div>
-              <div>
-                <div class="text-muted-foreground">Error Rate</div>
-                <div class="font-mono font-semibold">{{ i2cBus1.errorRate }}%</div>
-              </div>
-              <div>
-                <div class="text-muted-foreground">Current</div>
-                <div class="font-mono font-semibold">{{ i2cBus1.currentErrorRate }}%</div>
-              </div>
-            </div>
-
-            <!-- Diagnostic Info -->
-            <div class="space-y-1 text-sm text-muted-foreground">
-              <div>Last Error: <span class="font-mono">{{ i2cBus1.lastError }}</span></div>
-              <div class="flex items-center gap-1">
-                Motor Current: <span class="font-mono">{{ i2cBus1.motorCurrent }}A</span>
-                <span v-if="i2cBus1.motorCurrent > 2.5" class="text-yellow-600 dark:text-yellow-400">⚠</span>
-              </div>
+            <div v-else class="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+              Waiting for I2C health data...
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
-import { TvMinimal, Settings, Activity, Radio, Blocks, OctagonX, Sliders } from 'lucide-vue-next'
+import { TvMinimal, Settings, Activity, Radio, Blocks, OctagonX, Sliders, TriangleAlert } from 'lucide-vue-next'
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { NAV_TITLES, NAV_ROUTES, type NavigationItem } from '@/constants/navigation'
+import { useTelemetryStore } from '@/stores/telemetry'
 
 export default defineComponent({
   name: 'Layout',
@@ -26,6 +27,7 @@ export default defineComponent({
     // Navigation icons don't need registration - used dynamically via <component :is>
     // OctagonX is used directly in template, so it needs registration
     OctagonX,
+    TriangleAlert,
     Sidebar,
     SidebarContent,
     SidebarFooter,
@@ -76,12 +78,44 @@ export default defineComponent({
           icon: Settings,
         },
       ] satisfies NavigationItem[],
-      batteryLevel: 70 // State of charge percentage
+      batteryLevel: 70, // State of charge percentage
+      telemetryStore: useTelemetryStore()
+    }
+  },
+  computed: {
+    connectionStatus() {
+      return this.telemetryStore.connectionStatus
+    },
+    connectionDotClass() {
+      switch (this.connectionStatus) {
+        case 'connected': return 'bg-green-500'
+        case 'connecting':
+        case 'reconnecting': return 'bg-yellow-500 animate-pulse'
+        default: return 'bg-red-500'
+      }
+    },
+    connectionLabel() {
+      switch (this.connectionStatus) {
+        case 'connected': return 'Connected'
+        case 'connecting': return 'Connecting...'
+        case 'reconnecting': return 'Reconnecting...'
+        default: return 'Disconnected'
+      }
+    },
+    frontTofWarning() {
+      return this.telemetryStore.frontTofWarning
+    },
+    rearTofWarning() {
+      return this.telemetryStore.rearTofWarning
     }
   },
   created() {
     // Initialize battery level with dummy data
     this.batteryLevel = this.generateBatteryLevel()
+    // Connect to cogitator
+    if (this.telemetryStore.connectionStatus === 'disconnected') {
+      this.telemetryStore.connect()
+    }
   },
   methods: {
     // Generate realistic battery level (dummy data)
@@ -133,6 +167,22 @@ export default defineComponent({
     <SidebarInset>
       <header class="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
         <SidebarTrigger />
+
+        <!-- Connection Status -->
+        <div class="flex items-center gap-1.5 ml-2" :title="connectionLabel">
+          <div class="size-2.5 rounded-full" :class="connectionDotClass"></div>
+          <span class="text-xs text-muted-foreground hidden sm:inline">{{ connectionLabel }}</span>
+        </div>
+
+        <!-- ToF Warning Icons -->
+        <div v-if="frontTofWarning" class="flex items-center gap-1 ml-2 text-red-600 dark:text-red-400" title="Front obstacle warning">
+          <TriangleAlert class="h-4 w-4" />
+          <span class="text-xs font-medium">Front</span>
+        </div>
+        <div v-if="rearTofWarning" class="flex items-center gap-1 ml-1 text-red-600 dark:text-red-400" title="Rear obstacle warning">
+          <TriangleAlert class="h-4 w-4" />
+          <span class="text-xs font-medium">Rear</span>
+        </div>
 
         <!-- Battery Status -->
         <div class="flex items-center gap-2 ml-2">
