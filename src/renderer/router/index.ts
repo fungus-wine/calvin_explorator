@@ -4,6 +4,7 @@ import Services from '../views/Services.vue'
 import Diagnostics from '../views/Diagnostics.vue'
 import Telemetry from '../views/Telemetry.vue'
 import PIDTuning from '../views/PIDTuning.vue'
+import MotorControl from '../views/MotorControl.vue'
 import Settings from '../views/Settings.vue'
 
 const routes = [
@@ -35,6 +36,11 @@ const routes = [
     path: '/pid-tuning',
     name: 'PIDTuning',
     component: PIDTuning
+  },
+  {
+    path: '/motor-control',
+    name: 'MotorControl',
+    component: MotorControl
   },
   {
     path: '/settings',

@@ -21,6 +21,7 @@ export const NAV_TITLES = {
   DIAGNOSTICS: 'Diagnostics',
   TELEMETRY: 'Telemetry',
   PID_TUNING: 'PID Tuning',
+  MOTOR_CONTROL: 'Motor Control',
   SETTINGS: 'Settings'
 } as const
 
@@ -34,6 +35,7 @@ export const NAV_ROUTES = {
   DIAGNOSTICS: '/diagnostics',
   TELEMETRY: '/telemetry',
   PID_TUNING: '/pid-tuning',
+  MOTOR_CONTROL: '/motor-control',
   SETTINGS: '/settings'
 } as const
 

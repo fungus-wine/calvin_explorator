@@ -13,6 +13,8 @@ export const COGITATOR_CONNECTION = {
   RECONNECT_MAX_DELAY: 30000,
   /** Reconnect backoff: multiplier */
   RECONNECT_MULTIPLIER: 2,
+  /** Stop retrying after this many failed attempts */
+  MAX_RECONNECT_ATTEMPTS: 5,
 } as const
 
 export const TOPICS = {
@@ -21,4 +23,4 @@ export const TOPICS = {
   I2C_HEALTH: 'sensor.i2c_health',
 } as const
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'offline'

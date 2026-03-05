@@ -10,7 +10,12 @@ export interface WebSocketEnvelope {
 }
 
 type MessageHandler = (envelope: WebSocketEnvelope) => void
-type StatusHandler = (status: ConnectionStatus) => void
+type StatusHandler = (status: ConnectionStatus, meta?: ReconnectMeta) => void
+
+export interface ReconnectMeta {
+  attempt: number
+  nextRetryAt: number | null
+}
 
 export class WebSocketService {
   private ws: WebSocket | null = null
@@ -21,6 +26,7 @@ export class WebSocketService {
   private reconnectDelay: number = COGITATOR_CONNECTION.RECONNECT_INITIAL_DELAY
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private intentionalClose = false
+  private reconnectAttempt = 0
 
   constructor(onMessage: MessageHandler, onStatusChange: StatusHandler) {
     this.host = COGITATOR_CONNECTION.DEFAULT_HOST
@@ -35,7 +41,12 @@ export class WebSocketService {
 
     this.intentionalClose = false
     this.cleanup()
-    this.onStatusChange('connecting')
+
+    this.reconnectAttempt++
+    this.onStatusChange(this.reconnectAttempt === 1 ? 'connecting' : 'reconnecting', {
+      attempt: this.reconnectAttempt,
+      nextRetryAt: null,
+    })
 
     const url = `ws://${this.host}:${this.port}`
 
@@ -49,6 +60,7 @@ export class WebSocketService {
 
     this.ws.onopen = () => {
       this.reconnectDelay = COGITATOR_CONNECTION.RECONNECT_INITIAL_DELAY
+      this.reconnectAttempt = 0
       this.onStatusChange('connected')
     }
 
@@ -65,8 +77,11 @@ export class WebSocketService {
 
     this.ws.onclose = () => {
       if (!this.intentionalClose) {
-        this.onStatusChange('reconnecting')
-        this.scheduleReconnect()
+        if (this.reconnectAttempt >= COGITATOR_CONNECTION.MAX_RECONNECT_ATTEMPTS) {
+          this.onStatusChange('offline')
+        } else {
+          this.scheduleReconnect()
+        }
       } else {
         this.onStatusChange('disconnected')
       }
@@ -75,6 +90,12 @@ export class WebSocketService {
     this.ws.onerror = () => {
       // onclose will fire after onerror, so reconnect logic is handled there
     }
+  }
+
+  retry(): void {
+    this.reconnectAttempt = 0
+    this.reconnectDelay = COGITATOR_CONNECTION.RECONNECT_INITIAL_DELAY
+    this.connect(this.host, this.port)
   }
 
   disconnect(): void {
@@ -108,6 +129,13 @@ export class WebSocketService {
 
   private scheduleReconnect(): void {
     if (this.intentionalClose) return
+
+    const nextRetryAt = Date.now() + this.reconnectDelay
+
+    this.onStatusChange('reconnecting', {
+      attempt: this.reconnectAttempt,
+      nextRetryAt,
+    })
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null

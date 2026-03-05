@@ -2,27 +2,16 @@
 import { defineComponent } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { VisXYContainer, VisArea, VisLine, VisAxis } from '@unovis/vue'
 import { CHART_CONFIG, CHART_GRADIENT_DEFS } from '@/constants/chart'
-import { useTelemetryStore } from '@/stores/telemetry'
+import { useTelemetryStore, type IMUTimelinePoint, type IMUDataMode } from '@/stores/telemetry'
 
-// Type definitions for battery monitoring
-interface BatteryTimelinePoint {
-  timestamp: number
-  voltage: number
-  current: number
-  temperature: number
-}
-
-interface BatteryData {
-  voltage: number
-  current: number
-  power: number
-  stateOfCharge: number
-  temperature: number
-  status: 'good' | 'warning' | 'critical'
-  timeline: BatteryTimelinePoint[]
+const IMU_MODE_CONFIG: Record<IMUDataMode, { label: string; unit: string; xKey: string; yKey: string; zKey: string }> = {
+  accel: { label: 'Accelerometer', unit: 'g', xKey: 'ax', yKey: 'ay', zKey: 'az' },
+  gyro: { label: 'Gyroscope', unit: '°/s', xKey: 'gx', yKey: 'gy', zKey: 'gz' },
+  mag: { label: 'Magnetometer', unit: 'µT', xKey: 'mx', yKey: 'my', zKey: 'mz' },
 }
 
 // Type for ToF timeline points (used in chart accessors)
@@ -40,6 +29,7 @@ export default defineComponent({
     CardHeader,
     CardTitle,
     Badge,
+    Button,
     ErrorBoundary,
     VisXYContainer,
     VisArea,
@@ -52,8 +42,11 @@ export default defineComponent({
       AREA_OPACITY: CHART_CONFIG.AREA_OPACITY,
       LINE_WIDTH: CHART_CONFIG.LINE_WIDTH,
       svgDefs: CHART_GRADIENT_DEFS,
-      battery: {} as BatteryData,
-      telemetryStore: useTelemetryStore()
+      telemetryStore: useTelemetryStore(),
+      balancerMode: 'accel' as IMUDataMode,
+      oakdMode: 'accel' as IMUDataMode,
+      imuModes: ['accel', 'gyro', 'mag'] as IMUDataMode[],
+      imuModeConfig: IMU_MODE_CONFIG
     }
   },
   computed: {
@@ -63,37 +56,36 @@ export default defineComponent({
     tofRear() {
       return this.telemetryStore.tofRear
     },
+    imuBalancer() {
+      return this.telemetryStore.imuBalancer
+    },
+    imuOakd() {
+      return this.telemetryStore.imuOakd
+    },
     isConnected() {
       return this.telemetryStore.isConnected
     },
     tofFrontTickValues(): number[] {
-      return this.tofTickValues(this.tofFront.timeline)
+      return this.timelineTickValues(this.tofFront.timeline)
     },
     tofRearTickValues(): number[] {
-      return this.tofTickValues(this.tofRear.timeline)
+      return this.timelineTickValues(this.tofRear.timeline)
+    },
+    imuBalancerTickValues(): number[] {
+      return this.timelineTickValues(this.imuBalancer.timeline)
+    },
+    imuOakdTickValues(): number[] {
+      return this.timelineTickValues(this.imuOakd.timeline)
+    },
+    balancerConfig() {
+      return IMU_MODE_CONFIG[this.balancerMode]
+    },
+    oakdConfig() {
+      return IMU_MODE_CONFIG[this.oakdMode]
     }
   },
-  created() {
-    // Initialize battery data (no cogitator source yet)
-    this.battery = this.generateBatteryData()
-  },
   methods: {
-    // Generate realistic battery monitoring data
-    tofTickFormat(timeline: ToFTimelinePoint[], index: number): string {
-      if (timeline.length === 0) return ''
-      const latest = timeline[timeline.length - 1].timestamp
-      const point = timeline[Math.round(index)]
-      if (!point) return ''
-      const secondsAgo = Math.round((point.timestamp - latest) / 1000)
-      return `${secondsAgo}`
-    },
-    tofFrontXTickFormat(index: number): string {
-      return this.tofTickFormat(this.tofFront.timeline, index)
-    },
-    tofRearXTickFormat(index: number): string {
-      return this.tofTickFormat(this.tofRear.timeline, index)
-    },
-    tofTickValues(timeline: ToFTimelinePoint[]): number[] {
+    timelineTickValues(timeline: { timestamp: number }[]): number[] {
       const len = timeline.length
       if (len < 2) return []
       const NUM_TICKS = 6
@@ -106,86 +98,32 @@ export default defineComponent({
       values.push(last)
       return values
     },
-    generateBatteryData(): BatteryData {
-      const TIMELINE_POINTS = 60 // 60 seconds
-      const timeline: BatteryTimelinePoint[] = []
-
-      // Starting conditions (12V LiPo at ~70% charge)
-      let baseVoltage = 11.4 // 3.8V per cell
-      let baseTemp = 25 // Celsius
-
-      // Generate timeline data
-      for (let i = 0; i < TIMELINE_POINTS; i++) {
-        const timestamp = i
-
-        // Voltage slowly declines over time with some noise
-        const voltage = baseVoltage - (i * 0.001) + (Math.random() - 0.5) * 0.05
-
-        // Current varies based on robot activity (simulate activity bursts)
-        let current = 1.5 + Math.random() * 0.5 // Baseline 1.5-2.0A
-
-        // Activity bursts at certain times
-        if (i > 15 && i < 25) {
-          current = 3.5 + Math.random() * 1.0 // High activity 3.5-4.5A
-        }
-        if (i > 45 && i < 55) {
-          current = 4.0 + Math.random() * 1.5 // Very high activity 4.0-5.5A
-        }
-
-        // Temperature increases slightly with high current
-        const tempIncrease = (current - 2.0) * 0.5
-        const temperature = baseTemp + tempIncrease + (Math.random() - 0.5) * 1.0
-
-        timeline.push({
-          timestamp,
-          voltage: Math.round(voltage * 100) / 100,
-          current: Math.round(current * 100) / 100,
-          temperature: Math.round(temperature * 10) / 10
-        })
-      }
-
-      // Use most recent values
-      const lastPoint = timeline[timeline.length - 1]
-      const voltage = lastPoint.voltage
-      const current = lastPoint.current
-      const temperature = lastPoint.temperature
-
-      // Calculate power (W = V * A)
-      const power = Math.round(voltage * current * 10) / 10
-
-      // Estimate state of charge based on voltage (12V LiPo: 3S)
-      // 12.6V = 100%, 11.1V = 50%, 9.0V = 0%
-      let stateOfCharge = 0
-      if (voltage >= 12.6) {
-        stateOfCharge = 100
-      } else if (voltage >= 11.1) {
-        // Linear interpolation between 50% and 100%
-        stateOfCharge = 50 + ((voltage - 11.1) / (12.6 - 11.1)) * 50
-      } else if (voltage >= 9.0) {
-        // Linear interpolation between 0% and 50%
-        stateOfCharge = ((voltage - 9.0) / (11.1 - 9.0)) * 50
-      }
-      stateOfCharge = Math.round(stateOfCharge)
-
-      // Determine status
-      let status: 'good' | 'warning' | 'critical'
-      if (voltage < 9.5 || temperature > 45) {
-        status = 'critical'
-      } else if (voltage < 10.5 || temperature > 35) {
-        status = 'warning'
-      } else {
-        status = 'good'
-      }
-
-      return {
-        voltage,
-        current,
-        power,
-        stateOfCharge,
-        temperature,
-        status,
-        timeline
-      }
+    timelineTickFormat(timeline: { timestamp: number }[], index: number): string {
+      if (timeline.length === 0) return ''
+      const latest = timeline[timeline.length - 1].timestamp
+      const point = timeline[Math.round(index)]
+      if (!point) return ''
+      const secondsAgo = Math.round((point.timestamp - latest) / 1000)
+      return `${secondsAgo}`
+    },
+    tofFrontXTickFormat(index: number): string {
+      return this.timelineTickFormat(this.tofFront.timeline, index)
+    },
+    tofRearXTickFormat(index: number): string {
+      return this.timelineTickFormat(this.tofRear.timeline, index)
+    },
+    imuBalancerXTickFormat(index: number): string {
+      return this.timelineTickFormat(this.imuBalancer.timeline, index)
+    },
+    imuOakdXTickFormat(index: number): string {
+      return this.timelineTickFormat(this.imuOakd.timeline, index)
+    },
+    imuValue(latest: Record<string, number> | null, key: string): string {
+      if (!latest) return '--'
+      return latest[key].toFixed(2)
+    },
+    imuYAccessor(key: string): (d: IMUTimelinePoint) => number {
+      return (d: IMUTimelinePoint) => d[key as keyof IMUTimelinePoint] as number
     }
   }
 })
@@ -195,97 +133,215 @@ export default defineComponent({
   <div>
     <h2 class="text-3xl font-bold mb-6">Telemetry</h2>
 
-    <!-- Battery Health Section -->
-    <div class="mb-6">
+    <!-- IMU Accelerometer Data -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- Balancer IMU -->
       <ErrorBoundary>
         <Card>
           <CardHeader>
-            <CardTitle>Battery Health</CardTitle>
-            <CardDescription>12V LiPo (3S) - Adafruit INA228</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-6">
-            <!-- Status and Key Metrics -->
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <!-- Status Badge -->
+            <div class="flex items-center justify-between">
               <div>
-                <div class="text-sm text-muted-foreground mb-2">Status</div>
-                <Badge
-                  :variant="battery.status === 'good' ? 'default' : battery.status === 'warning' ? 'secondary' : 'destructive'"
-                  class="capitalize"
+                <CardTitle>Balancer IMU</CardTitle>
+                <CardDescription>{{ balancerConfig.label }} - X, Y, Z axes</CardDescription>
+              </div>
+              <div class="flex gap-1">
+                <Button
+                  v-for="mode in imuModes"
+                  :key="mode"
+                  :variant="balancerMode === mode ? 'default' : 'outline'"
+                  size="sm"
+                  @click="balancerMode = mode"
                 >
-                  <span v-if="battery.status === 'good'" class="mr-1">✓</span>
-                  <span v-if="battery.status === 'warning'" class="mr-1">⚠</span>
-                  <span v-if="battery.status === 'critical'" class="mr-1">✗</span>
-                  {{ battery.status }}
-                </Badge>
+                  {{ imuModeConfig[mode].label }}
+                </Button>
               </div>
-
-              <!-- Voltage -->
+            </div>
+          </CardHeader>
+          <CardContent class="space-y-4" v-if="imuBalancer.timeline.length > 1">
+            <!-- Latest Values -->
+            <div class="grid grid-cols-3 gap-4">
               <div>
-                <div class="text-sm text-muted-foreground mb-2">Voltage</div>
-                <div class="text-2xl font-mono font-bold">{{ battery.voltage }}V</div>
+                <div class="text-sm text-muted-foreground mb-1">X</div>
+                <div class="text-xl font-mono font-bold">
+                  {{ imuValue(imuBalancer.latest, balancerConfig.xKey) }}
+                </div>
               </div>
-
-              <!-- Current -->
               <div>
-                <div class="text-sm text-muted-foreground mb-2">Current</div>
-                <div class="text-2xl font-mono font-bold">{{ battery.current }}A</div>
+                <div class="text-sm text-muted-foreground mb-1">Y</div>
+                <div class="text-xl font-mono font-bold">
+                  {{ imuValue(imuBalancer.latest, balancerConfig.yKey) }}
+                </div>
               </div>
-
-              <!-- Power -->
               <div>
-                <div class="text-sm text-muted-foreground mb-2">Power</div>
-                <div class="text-2xl font-mono font-bold">{{ battery.power }}W</div>
-              </div>
-
-              <!-- Temperature -->
-              <div>
-                <div class="text-sm text-muted-foreground mb-2">Temperature</div>
-                <div class="text-2xl font-mono font-bold">
-                  {{ battery.temperature }}°C
-                  <span v-if="battery.temperature > 35" class="text-base text-yellow-600 dark:text-yellow-400 ml-1">⚠</span>
+                <div class="text-sm text-muted-foreground mb-1">Z</div>
+                <div class="text-xl font-mono font-bold">
+                  {{ imuValue(imuBalancer.latest, balancerConfig.zKey) }}
                 </div>
               </div>
             </div>
 
-            <!-- Current History Chart -->
+            <!-- Timeline Chart -->
             <div>
-              <div class="text-sm font-medium mb-2">Current Draw</div>
+              <div class="text-sm font-medium mb-2">{{ balancerConfig.label }} ({{ balancerConfig.unit }})</div>
               <VisXYContainer
-                :data="battery.timeline"
+                :data="imuBalancer.timeline"
                 :height="CHART_HEIGHT"
+                :duration="0"
                 :svg-defs="svgDefs"
                 class="chart-container"
               >
-                <VisArea
-                  :x="(d: BatteryTimelinePoint) => d.timestamp"
-                  :y="(d: BatteryTimelinePoint) => d.current"
-                  color="url(#fillChart2)"
-                  :opacity="AREA_OPACITY"
+                <VisLine
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  :y="imuYAccessor(balancerConfig.xKey)"
+                  color="var(--chart-1)"
+                  :line-width="LINE_WIDTH"
                 />
                 <VisLine
-                  :x="(d: BatteryTimelinePoint) => d.timestamp"
-                  :y="(d: BatteryTimelinePoint) => d.current"
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  :y="imuYAccessor(balancerConfig.yKey)"
                   color="var(--chart-2)"
+                  :line-width="LINE_WIDTH"
+                />
+                <VisLine
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  :y="imuYAccessor(balancerConfig.zKey)"
+                  color="var(--chart-3)"
                   :line-width="LINE_WIDTH"
                 />
                 <VisAxis
                   type="x"
-                  :x="(d: BatteryTimelinePoint) => d.timestamp"
-                  label="Time (seconds ago)"
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  label="Seconds Ago"
                   :tick-line="false"
                   :domain-line="false"
                   :grid-line="false"
-                  :num-ticks="6"
+                  :tick-values="imuBalancerTickValues"
+                  :tick-format="imuBalancerXTickFormat"
                 />
                 <VisAxis
                   type="y"
-                  label="Current (A)"
+                  :label="`${balancerConfig.label} (${balancerConfig.unit})`"
                   :num-ticks="5"
                   :tick-line="false"
                   :domain-line="false"
                 />
               </VisXYContainer>
+              <div class="flex gap-4 mt-2 text-xs text-muted-foreground">
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 rounded" style="background: var(--chart-1)"></span> X</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 rounded" style="background: var(--chart-2)"></span> Y</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 rounded" style="background: var(--chart-3)"></span> Z</span>
+              </div>
+            </div>
+          </CardContent>
+          <CardContent v-else>
+            <div class="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+              Waiting for data...
+            </div>
+          </CardContent>
+        </Card>
+      </ErrorBoundary>
+
+      <!-- OAK-D Pro W IMU -->
+      <ErrorBoundary>
+        <Card>
+          <CardHeader>
+            <div class="flex items-center justify-between">
+              <div>
+                <CardTitle>OAK-D Pro W IMU</CardTitle>
+                <CardDescription>{{ oakdConfig.label }} - X, Y, Z axes</CardDescription>
+              </div>
+              <div class="flex gap-1">
+                <Button
+                  v-for="mode in imuModes"
+                  :key="mode"
+                  :variant="oakdMode === mode ? 'default' : 'outline'"
+                  size="sm"
+                  @click="oakdMode = mode"
+                >
+                  {{ imuModeConfig[mode].label }}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent class="space-y-4" v-if="imuOakd.timeline.length > 1">
+            <!-- Latest Values -->
+            <div class="grid grid-cols-3 gap-4">
+              <div>
+                <div class="text-sm text-muted-foreground mb-1">X</div>
+                <div class="text-xl font-mono font-bold">
+                  {{ imuValue(imuOakd.latest, oakdConfig.xKey) }}
+                </div>
+              </div>
+              <div>
+                <div class="text-sm text-muted-foreground mb-1">Y</div>
+                <div class="text-xl font-mono font-bold">
+                  {{ imuValue(imuOakd.latest, oakdConfig.yKey) }}
+                </div>
+              </div>
+              <div>
+                <div class="text-sm text-muted-foreground mb-1">Z</div>
+                <div class="text-xl font-mono font-bold">
+                  {{ imuValue(imuOakd.latest, oakdConfig.zKey) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Timeline Chart -->
+            <div>
+              <div class="text-sm font-medium mb-2">{{ oakdConfig.label }} ({{ oakdConfig.unit }})</div>
+              <VisXYContainer
+                :data="imuOakd.timeline"
+                :height="CHART_HEIGHT"
+                :duration="0"
+                :svg-defs="svgDefs"
+                class="chart-container"
+              >
+                <VisLine
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  :y="imuYAccessor(oakdConfig.xKey)"
+                  color="var(--chart-1)"
+                  :line-width="LINE_WIDTH"
+                />
+                <VisLine
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  :y="imuYAccessor(oakdConfig.yKey)"
+                  color="var(--chart-2)"
+                  :line-width="LINE_WIDTH"
+                />
+                <VisLine
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  :y="imuYAccessor(oakdConfig.zKey)"
+                  color="var(--chart-3)"
+                  :line-width="LINE_WIDTH"
+                />
+                <VisAxis
+                  type="x"
+                  :x="(_d: IMUTimelinePoint, i: number) => i"
+                  label="Seconds Ago"
+                  :tick-line="false"
+                  :domain-line="false"
+                  :grid-line="false"
+                  :tick-values="imuOakdTickValues"
+                  :tick-format="imuOakdXTickFormat"
+                />
+                <VisAxis
+                  type="y"
+                  :label="`${oakdConfig.label} (${oakdConfig.unit})`"
+                  :num-ticks="5"
+                  :tick-line="false"
+                  :domain-line="false"
+                />
+              </VisXYContainer>
+              <div class="flex gap-4 mt-2 text-xs text-muted-foreground">
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 rounded" style="background: var(--chart-1)"></span> X</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 rounded" style="background: var(--chart-2)"></span> Y</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 rounded" style="background: var(--chart-3)"></span> Z</span>
+              </div>
+            </div>
+          </CardContent>
+          <CardContent v-else>
+            <div class="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+              Waiting for data...
             </div>
           </CardContent>
         </Card>

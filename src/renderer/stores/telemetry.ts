@@ -4,7 +4,19 @@
 
 import { defineStore } from 'pinia'
 import { COGITATOR_CONNECTION, TOPICS, type ConnectionStatus } from '@/constants/connection'
-import { WebSocketService, type WebSocketEnvelope } from '@/services/websocketService'
+import { STORAGE_KEYS } from '@/constants/storage'
+import { WebSocketService, type WebSocketEnvelope, type ReconnectMeta } from '@/services/websocketService'
+
+function loadSavedConnection(): { host: string; port: number } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.COGITATOR_CONNECTION)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { host: string; port: number }
+      if (parsed.host && parsed.port) return parsed
+    }
+  } catch { /* ignore */ }
+  return { host: COGITATOR_CONNECTION.DEFAULT_HOST, port: COGITATOR_CONNECTION.DEFAULT_PORT }
+}
 
 // -- ToF types --
 
@@ -46,18 +58,44 @@ interface IMURawReading {
   gx: number
   gy: number
   gz: number
+  mx: number
+  my: number
+  mz: number
+}
+
+export type IMUDataMode = 'accel' | 'gyro' | 'mag'
+
+export interface IMUTimelinePoint {
+  timestamp: number
+  ax: number
+  ay: number
+  az: number
+  gx: number
+  gy: number
+  gz: number
+  mx: number
+  my: number
+  mz: number
+}
+
+export interface IMUSensorState {
+  latest: IMURawReading | null
+  timeline: IMUTimelinePoint[]
 }
 
 // -- Store state --
 
 interface TelemetryState {
   connectionStatus: ConnectionStatus
+  reconnectAttempt: number
+  nextRetryAt: number | null
   host: string
   port: number
   tofFront: ToFSensorState
   tofRear: ToFSensorState
   i2cHealth: I2CHealthState
-  imuLatest: IMURawReading | null
+  imuBalancer: IMUSensorState
+  imuOakd: IMUSensorState
 }
 
 const MAX_POINTS = COGITATOR_CONNECTION.TIMELINE_MAX_POINTS
@@ -90,6 +128,13 @@ function emptyI2C(): I2CHealthState {
   }
 }
 
+function emptyIMU(): IMUSensorState {
+  return {
+    latest: null,
+    timeline: [],
+  }
+}
+
 function deriveToFRangeStatus(distance: number): 'valid' | 'out_of_range' | 'error' {
   if (distance < 50) return 'error'
   if (distance > 4000) return 'out_of_range'
@@ -110,15 +155,21 @@ function deriveI2CStatus(nacks: number, timeouts: number, resets: number): 'heal
 }
 
 export const useTelemetryStore = defineStore('telemetry', {
-  state: (): TelemetryState => ({
-    connectionStatus: 'disconnected',
-    host: COGITATOR_CONNECTION.DEFAULT_HOST,
-    port: COGITATOR_CONNECTION.DEFAULT_PORT,
-    tofFront: emptyToF(),
-    tofRear: emptyToF(),
-    i2cHealth: emptyI2C(),
-    imuLatest: null,
-  }),
+  state: (): TelemetryState => {
+    const saved = loadSavedConnection()
+    return {
+      connectionStatus: 'disconnected',
+      reconnectAttempt: 0,
+      nextRetryAt: null,
+      host: saved.host,
+      port: saved.port,
+      tofFront: emptyToF(),
+      tofRear: emptyToF(),
+      i2cHealth: emptyI2C(),
+      imuBalancer: emptyIMU(),
+      imuOakd: emptyIMU(),
+    }
+  },
 
   getters: {
     isConnected(state): boolean {
@@ -143,7 +194,11 @@ export const useTelemetryStore = defineStore('telemetry', {
 
       wsInstance = new WebSocketService(
         (envelope) => this.handleMessage(envelope),
-        (status) => { this.connectionStatus = status }
+        (status, meta?: ReconnectMeta) => {
+          this.connectionStatus = status
+          this.reconnectAttempt = meta?.attempt ?? 0
+          this.nextRetryAt = meta?.nextRetryAt ?? null
+        }
       )
 
       wsInstance.connect(this.host, this.port)
@@ -153,6 +208,14 @@ export const useTelemetryStore = defineStore('telemetry', {
       if (wsInstance) {
         wsInstance.disconnect()
         wsInstance = null
+      }
+    },
+
+    retry() {
+      if (wsInstance) {
+        wsInstance.retry()
+      } else {
+        this.connect()
       }
     },
 
@@ -190,14 +253,32 @@ export const useTelemetryStore = defineStore('telemetry', {
     },
 
     handleIMU(data: Record<string, unknown>) {
-      this.imuLatest = {
+      const reading: IMURawReading = {
         ax: data.ax as number ?? 0,
         ay: data.ay as number ?? 0,
         az: data.az as number ?? 0,
         gx: data.gx as number ?? 0,
         gy: data.gy as number ?? 0,
         gz: data.gz as number ?? 0,
+        mx: data.mx as number ?? 0,
+        my: data.my as number ?? 0,
+        mz: data.mz as number ?? 0,
       }
+
+      const source = data.source as string | undefined
+      const target = source === 'oakd' ? this.imuOakd : this.imuBalancer
+
+      target.latest = reading
+      target.timeline = appendToTimeline(
+        target.timeline,
+        {
+          timestamp: Date.now(),
+          ax: reading.ax, ay: reading.ay, az: reading.az,
+          gx: reading.gx, gy: reading.gy, gz: reading.gz,
+          mx: reading.mx, my: reading.my, mz: reading.mz,
+        },
+        MAX_POINTS
+      )
     },
 
     handleI2CHealth(data: Record<string, unknown>) {
