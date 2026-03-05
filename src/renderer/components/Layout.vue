@@ -245,7 +245,7 @@ export default defineComponent({
             </div>
           </div>
           <!-- Percentage -->
-          <div class="text-sm font-mono font-semibold">{{ batteryLevel }}%</div>
+          <div class="text-sm font-mono font-semibold">{{ batteryLevel }}V</div>
         </div>
 
         <!-- Connection Status -->

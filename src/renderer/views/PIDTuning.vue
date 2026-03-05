@@ -4,15 +4,9 @@ import { ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { adjustWithTuningMode } from '@/utils/pid'
-
-interface PIDController {
-  id: string
-  name: string
-  description: string
-  p: number
-  i: number
-  d: number
-}
+import { usePidStore } from '@/stores/pid'
+import { useTelemetryStore } from '@/stores/telemetry'
+import { toast } from 'vue-sonner'
 
 type TuningMode = 'ultrafine' | 'fine' | 'coarse'
 
@@ -27,44 +21,71 @@ export default defineComponent({
   data() {
     return {
       tuningMode: 'fine' as TuningMode,
-      flashingParam: null as string | null,
-      controllers: [
-        {
-          id: 'tilt',
-          name: 'Tilt Controller',
-          description: 'Main balancing PID for pitch control',
-          p: 25.0,
-          i: 0.5,
-          d: 2.0
-        },
-        {
-          id: 'velocity',
-          name: 'Velocity Controller',
-          description: 'Forward/backward movement control',
-          p: 15.0,
-          i: 0.3,
-          d: 1.5
-        }
-      ] as PIDController[]
+      pendingParam: null as string | null,
     }
   },
+  computed: {
+    pidStore() {
+      return usePidStore()
+    },
+    telemetryStore() {
+      return useTelemetryStore()
+    },
+    controllers() {
+      return this.pidStore.controllers
+    },
+    disabled(): boolean {
+      return !this.pidStore.isAvailable
+    },
+  },
+  watch: {
+    'telemetryStore.isConnected'(connected: boolean) {
+      if (connected) {
+        this.loadPidValues()
+      }
+    },
+  },
+  created() {
+    this.pidStore.init()
+    if (this.telemetryStore.isConnected) {
+      this.loadPidValues()
+    }
+  },
+  unmounted() {
+    this.pidStore.dispose()
+  },
   methods: {
-    adjustValue(controllerId: string, param: 'p' | 'i' | 'd', direction: 'up' | 'down'): void {
+    async loadPidValues() {
+      try {
+        await this.pidStore.fetchCurrentValues()
+      } catch (err) {
+        toast.error('Failed to load PID values', {
+          description: String(err),
+        })
+      }
+    },
+
+    async adjustValue(controllerId: string, param: 'kp' | 'ki' | 'kd', direction: 'up' | 'down') {
+      if (this.disabled || this.pendingParam) return
+
       const controller = this.controllers.find(c => c.id === controllerId)
       if (!controller) return
 
-      // Calculate new value using utility
-      controller[param] = adjustWithTuningMode(controller[param], this.tuningMode, direction)
-
-      // Flash the border
+      const newValue = adjustWithTuningMode(controller.values[param], this.tuningMode, direction)
       const key = `${controllerId}-${param}`
-      this.flashingParam = key
-      setTimeout(() => {
-        if (this.flashingParam === key) {
-          this.flashingParam = null
-        }
-      }, 200)
-    }
+      this.pendingParam = key
+
+      try {
+        await this.pidStore.adjustValue(controllerId, param, newValue)
+        this.pidStore.flashParam(key)
+      } catch (err) {
+        toast.error('PID update failed', {
+          description: String(err),
+        })
+      } finally {
+        this.pendingParam = null
+      }
+    },
   }
 })
 </script>
@@ -77,18 +98,21 @@ export default defineComponent({
       <div class="flex gap-2">
         <Button
           :variant="tuningMode === 'ultrafine' ? 'default' : 'outline'"
+          :disabled="disabled"
           @click="tuningMode = 'ultrafine'"
         >
           Ultrafine (1%)
         </Button>
         <Button
           :variant="tuningMode === 'fine' ? 'default' : 'outline'"
+          :disabled="disabled"
           @click="tuningMode = 'fine'"
         >
           Fine (10%)
         </Button>
         <Button
           :variant="tuningMode === 'coarse' ? 'default' : 'outline'"
+          :disabled="disabled"
           @click="tuningMode = 'coarse'"
         >
           Coarse (25%)
@@ -96,32 +120,45 @@ export default defineComponent({
       </div>
     </div>
 
+    <div v-if="!telemetryStore.isConnected" class="mb-4 text-sm text-muted-foreground">
+      Not connected to cogitator. PID controls are disabled.
+    </div>
+    <div v-else-if="!pidStore.loaded" class="mb-4 text-sm text-muted-foreground">
+      Loading PID values from cogitator...
+    </div>
+
     <div class="grid grid-cols-1 gap-6">
       <div
         v-for="controller in controllers"
         :key="controller.id"
         class="border rounded-lg p-6"
+        :class="{ 'opacity-50': disabled }"
       >
         <h3 class="text-lg font-semibold mb-1">{{ controller.name }}</h3>
         <p class="text-muted-foreground text-sm mb-4">{{ controller.description }}</p>
 
         <div class="grid grid-cols-3 gap-6">
-          <!-- P Parameter -->
-          <div>
-            <label class="text-sm font-medium mb-2 block">P (Proportional)</label>
+          <div v-for="p in (['kp', 'ki', 'kd'] as const)" :key="p">
+            <label class="text-sm font-medium mb-2 block">
+              {{ p === 'kp' ? 'P (Proportional)' : p === 'ki' ? 'I (Integral)' : 'D (Derivative)' }}
+            </label>
             <div class="flex items-center gap-2">
               <input
-                :value="controller.p"
+                :value="controller.values[p]"
                 readonly
                 class="flex-1 px-3 py-2 border rounded-md bg-muted text-center font-mono transition-colors focus:outline-none"
-                :class="flashingParam === `${controller.id}-p` ? 'border-primary' : ''"
+                :class="{
+                  'border-primary': pidStore.flashingParam === `${controller.id}-${p}`,
+                  'animate-pulse': pendingParam === `${controller.id}-${p}`,
+                }"
               />
               <div class="flex flex-col gap-1">
                 <Button
                   size="icon"
                   variant="outline"
                   class="h-6 w-6"
-                  @click="adjustValue(controller.id, 'p', 'up')"
+                  :disabled="disabled || pendingParam !== null"
+                  @click="adjustValue(controller.id, p, 'up')"
                 >
                   <ChevronUp class="h-3 w-3" />
                 </Button>
@@ -129,69 +166,8 @@ export default defineComponent({
                   size="icon"
                   variant="outline"
                   class="h-6 w-6"
-                  @click="adjustValue(controller.id, 'p', 'down')"
-                >
-                  <ChevronDown class="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <!-- I Parameter -->
-          <div>
-            <label class="text-sm font-medium mb-2 block">I (Integral)</label>
-            <div class="flex items-center gap-2">
-              <input
-                :value="controller.i"
-                readonly
-                class="flex-1 px-3 py-2 border rounded-md bg-muted text-center font-mono transition-colors focus:outline-none"
-                :class="flashingParam === `${controller.id}-i` ? 'border-primary' : ''"
-              />
-              <div class="flex flex-col gap-1">
-                <Button
-                  size="icon"
-                  variant="outline"
-                  class="h-6 w-6"
-                  @click="adjustValue(controller.id, 'i', 'up')"
-                >
-                  <ChevronUp class="h-3 w-3" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  class="h-6 w-6"
-                  @click="adjustValue(controller.id, 'i', 'down')"
-                >
-                  <ChevronDown class="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <!-- D Parameter -->
-          <div>
-            <label class="text-sm font-medium mb-2 block">D (Derivative)</label>
-            <div class="flex items-center gap-2">
-              <input
-                :value="controller.d"
-                readonly
-                class="flex-1 px-3 py-2 border rounded-md bg-muted text-center font-mono transition-colors focus:outline-none"
-                :class="flashingParam === `${controller.id}-d` ? 'border-primary' : ''"
-              />
-              <div class="flex flex-col gap-1">
-                <Button
-                  size="icon"
-                  variant="outline"
-                  class="h-6 w-6"
-                  @click="adjustValue(controller.id, 'd', 'up')"
-                >
-                  <ChevronUp class="h-3 w-3" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  class="h-6 w-6"
-                  @click="adjustValue(controller.id, 'd', 'down')"
+                  :disabled="disabled || pendingParam !== null"
+                  @click="adjustValue(controller.id, p, 'down')"
                 >
                   <ChevronDown class="h-3 w-3" />
                 </Button>

@@ -21,6 +21,10 @@ export const TOPICS = {
   TOF: 'sensor.tof',
   IMU: 'sensor.imu',
   I2C_HEALTH: 'sensor.i2c_health',
+  COMMAND_PID: 'command.pid',
+  COMMAND_PID_READ: 'command.pid.read',
+  RESPONSE_PID: 'response.pid',
+  RESPONSE_PID_READ: 'response.pid.read',
 } as const
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'offline'

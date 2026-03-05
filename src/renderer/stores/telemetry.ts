@@ -103,6 +103,10 @@ const MAX_POINTS = COGITATOR_CONNECTION.TIMELINE_MAX_POINTS
 // Non-reactive WebSocket instance (kept outside store to avoid Pinia reactivity)
 let wsInstance: WebSocketService | null = null
 
+// External message handlers (e.g. PID store subscribing to responses)
+type ExternalMessageHandler = (envelope: WebSocketEnvelope) => void
+const externalHandlers: ExternalMessageHandler[] = []
+
 function appendToTimeline<T>(timeline: T[], point: T, max: number): T[] {
   const next = [...timeline, point]
   if (next.length > max) next.shift()
@@ -219,6 +223,21 @@ export const useTelemetryStore = defineStore('telemetry', {
       }
     },
 
+    send(topic: string, data: Record<string, unknown>) {
+      if (wsInstance) {
+        wsInstance.send({ topic, data })
+      }
+    },
+
+    subscribe(handler: ExternalMessageHandler) {
+      externalHandlers.push(handler)
+    },
+
+    unsubscribe(handler: ExternalMessageHandler) {
+      const idx = externalHandlers.indexOf(handler)
+      if (idx !== -1) externalHandlers.splice(idx, 1)
+    },
+
     handleMessage(envelope: WebSocketEnvelope) {
       const topicHandlers: Record<string, (data: Record<string, unknown>) => void> = {
         [TOPICS.TOF]: (data) => this.handleToF(data),
@@ -227,7 +246,13 @@ export const useTelemetryStore = defineStore('telemetry', {
       }
 
       const handler = topicHandlers[envelope.topic]
-      if (handler) handler(envelope.data)
+      if (handler) {
+        handler(envelope.data)
+      } else {
+        for (const ext of externalHandlers) {
+          ext(envelope)
+        }
+      }
     },
 
     handleToF(data: Record<string, unknown>) {
